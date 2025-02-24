@@ -1,0 +1,37 @@
+# Core
+Django==5.0.2
+django-environ==0.12.0
+gunicorn==22.0.0
+
+# Database and Cache
+django-redis==5.4.0
+psycopg2-binary==2.9.9
+
+# API and REST
+django-cors-headers==4.3.1
+djangorestframework==3.15.2
+drf-spectacular==0.27.1
+
+# Admin and UI
+django-ckeditor-5==0.2.11
+django-jazzmin==2.6.0
+
+# Internationalization
+django-modeltranslation==0.18.11
+
+# Data Management
+django-import-export==3.3.6
+
+# Development Tools
+black==24.3.0
+django-debug-toolbar==4.3.0
+flake8==7.0.0
+isort==5.13.2
+pre-commit==3.6.0
+sentry-sdk==2.8.0
+
+# Testing
+factory-boy==3.3.0
+pytest==8.0.0
+pytest-cov==4.1.0
+pytest-django==4.8.0
