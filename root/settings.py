@@ -1,10 +1,9 @@
 from os.path import join
 from pathlib import Path
-import os
+
+import sentry_sdk
 from django.utils.translation import gettext_lazy as _
 from environ import Env
-import sentry_sdk
-from sentry_sdk.integrations.django import DjangoIntegration
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -58,6 +57,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'drf_spectacular',
     'import_export',
+    'safedelete',
 
 ]
 
@@ -306,25 +306,25 @@ REST_FRAMEWORK = {
 JAZZMIN_SETTINGS = {
     # Title on the login screen
     "site_title": "Visa Doctors Admin",
-    
+
     # Title on the brand (19 chars max)
     "site_header": "Visa Doctors",
-    
+
     # Square logo to use for your site
     "site_logo": None,
-    
+
     # Welcome text on the login screen
     "welcome_sign": "Welcome to Visa Doctors",
-    
+
     # Copyright on the footer
     "copyright": "Visa Doctors Ltd",
-    
+
     # List of model admins to search from the search bar
     "search_model": ["auth.User", "auth.Group"],
-    
+
     # Field name on user model that contains avatar image
     "user_avatar": None,
-    
+
     ############
     # Top Menu #
     ############
@@ -332,13 +332,13 @@ JAZZMIN_SETTINGS = {
         {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},
         {"model": "auth.User"},
     ],
-    
+
     #############
     # Side Menu #
     #############
     "show_sidebar": True,
     "navigation_expanded": True,
-    
+
     # Custom icons for side menu apps/models
     "icons": {
         "auth": "fas fa-users-cog",

@@ -21,6 +21,7 @@ django-modeltranslation==0.18.11
 
 # Data Management
 django-import-export==3.3.6
+django-safedelete==1.3.3
 
 # Development Tools
 black==24.3.0
