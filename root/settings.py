@@ -345,7 +345,26 @@ JAZZMIN_SETTINGS = {
         "auth": "fas fa-users-cog",
         "auth.user": "fas fa-user",
         "auth.Group": "fas fa-users",
+        
+        # Pages
+        "app.about": "fas fa-info-circle",
+        "app.abouthighlight": "fas fa-star",
+        "app.visatype": "fas fa-passport",
+        "app.visadocument": "fas fa-file-alt",
+        "app.resultcategory": "fas fa-folder",
+        "app.result": "fas fa-check-circle",
+        "app.contactinfo": "fas fa-address-book",
+        
+        # Survey
+        "app.question": "fas fa-question-circle",
+        "app.answeroption": "fas fa-list",
+        "app.surveysubmission": "fas fa-paper-plane",
+        "app.response": "fas fa-reply",
     },
+    
+    # Add support dark theme
+    "show_ui_builder": True,
+    "dark_mode_theme": "darkly",
 }
 
 # Cache Configuration
