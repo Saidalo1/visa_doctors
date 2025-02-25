@@ -13,21 +13,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+      - name: Build test container
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: visa_doctors:test
+          target: test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Run tests
-        run: |
-          python manage.py test
-        env:
-          DJANGO_SETTINGS_MODULE: root.settings
+        run: docker run --rm visa_doctors:test python manage.py test
 
   deploy:
     needs: test
@@ -68,22 +68,17 @@ jobs:
             echo "Pulling latest changes..."
             retry git pull origin ${GITHUB_REF#refs/heads/}
             
-            # Activate virtual environment and install dependencies
-            echo "Installing dependencies..."
-            retry source venv/bin/activate
-            retry pip install -r requirements.txt
+            # Build and start containers
+            echo "Building and starting containers..."
+            retry docker compose build --no-cache
+            retry docker compose up -d
             
             # Run migrations
             echo "Running migrations..."
-            python manage.py migrate --noinput
+            retry docker compose exec -T web python manage.py migrate --noinput
             
             # Collect static files
             echo "Collecting static files..."
-            python manage.py collectstatic --noinput
-            
-            # Restart services
-            echo "Restarting services..."
-            sudo systemctl restart gunicorn
-            sudo systemctl restart nginx
+            retry docker compose exec -T web python manage.py collectstatic --noinput
             
             echo "DEPLOY FINISHED"
