@@ -19,11 +19,6 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
-      - name: Create env file
-        run: |
-          echo "PORT=8000" > .env
-          echo "DJANGO_SETTINGS_MODULE=root.settings" >> .env
-
       - name: Build and run tests
         run: |
           docker compose build web
