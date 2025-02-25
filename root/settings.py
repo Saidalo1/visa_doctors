@@ -47,18 +47,19 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    # My apps
-    'app.apps.AppConfig',
-
-    # Third-party apps
+    # Third party apps
+    'adminsortable2',
     'corsheaders',
     'debug_toolbar',
     'django_ckeditor_5',
-    'rest_framework',
     'drf_spectacular',
     'import_export',
+    'mptt',
+    'rest_framework',
     'safedelete',
 
+    # Local apps
+    'app.apps.AppConfig',
 ]
 
 MIDDLEWARE = [

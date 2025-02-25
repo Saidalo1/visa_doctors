@@ -7,7 +7,7 @@ mig:
 # Create superuser for the admin panel
 adm:
 	@echo "Creating superuser for the admin panel..."
-	@python3 ./manage.py create_super_user
+	@python3 ./manage.py createsuperuser
 	@echo "Superuser created."
 
 # Create application
