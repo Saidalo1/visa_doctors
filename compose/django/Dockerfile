@@ -24,4 +24,9 @@ RUN chmod +x /start
 WORKDIR /app
 COPY . /app
 
+# Create logs directory and set permissions
+RUN mkdir -p /app/logs && \
+    touch /app/logs/critical.log /app/logs/error.log /app/logs/info.log /app/logs/warning.log && \
+    chmod -R 777 /app/logs
+
 ENTRYPOINT ["/entrypoint"]
