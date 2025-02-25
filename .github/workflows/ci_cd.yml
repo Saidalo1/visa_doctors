@@ -26,8 +26,8 @@ jobs:
 
       - name: Build and run tests
         run: |
-          docker-compose build web
-          docker-compose run --rm web python manage.py test
+          docker compose build web
+          docker compose run --rm web python manage.py test
 
   deploy:
     needs: test
@@ -70,15 +70,15 @@ jobs:
             
             # Build and start containers
             echo "Building and starting containers..."
-            retry docker-compose build web
-            retry docker-compose up -d
+            retry docker compose build web
+            retry docker compose up -d
             
             # Run migrations
             echo "Running migrations..."
-            retry docker-compose exec -T web python manage.py migrate --noinput
+            retry docker compose exec -T web python manage.py migrate --noinput
             
             # Collect static files
             echo "Collecting static files..."
-            retry docker-compose exec -T web python manage.py collectstatic --noinput
+            retry docker compose exec -T web python manage.py collectstatic --noinput
             
             echo "DEPLOY FINISHED"
