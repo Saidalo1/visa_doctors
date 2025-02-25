@@ -19,6 +19,27 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
+      - name: Create env file
+        run: |
+          cat << EOF > .env
+          DEBUG=True
+          PORT=8000
+          SECRET_KEY='django-insecure-test-key'
+          TEMPLATE_APP_DIR=True
+          
+          CORS_ALLOWED_ORIGINS=http://localhost:3000
+          CORS_ALLOW_CREDENTIALS=True
+          
+          SQL_ENGINE=django.db.backends.postgresql_psycopg2
+          SQL_HOST=postgres
+          SQL_NAME=test_db
+          SQL_PORT=5432
+          SQL_USER=postgres
+          POSTGRES_PASSWORD=postgres
+          
+          ALLOWED_HOSTS=localhost,127.0.0.1
+          EOF
+
       - name: Build and run tests
         run: |
           docker compose build web
