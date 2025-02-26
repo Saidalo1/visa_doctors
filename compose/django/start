@@ -4,10 +4,21 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
-# Django management commands
-python manage.py collectstatic --noinput
-python manage.py makemigrations
-python manage.py migrate
+echo "Starting Django management commands..."
 
+# Django management commands
+echo "Running collectstatic..."
+python manage.py collectstatic --noinput
+echo "Collectstatic completed."
+
+echo "Running makemigrations..."
+python manage.py makemigrations
+echo "Makemigrations completed."
+
+echo "Running migrate..."
+python manage.py migrate
+echo "Migrate completed."
+
+echo "Starting Gunicorn..."
 # Start Gunicorn
 exec gunicorn root.wsgi:application -c /app/gunicorn.py
