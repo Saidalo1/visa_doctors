@@ -16,6 +16,9 @@ urlpatterns = [
     path('api/schema/swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 
+    # CKEditor 5
+    path("ckeditor5/", include('django_ckeditor_5.urls')),
+
     # Sentry debug
     path('sentry-debug/', lambda request: 1 / 0, name='test-sentry'),
 ]

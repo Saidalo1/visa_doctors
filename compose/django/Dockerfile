@@ -29,4 +29,8 @@ RUN mkdir -p /app/logs && \
     touch /app/logs/critical.log /app/logs/error.log /app/logs/info.log /app/logs/warning.log && \
     chmod -R 777 /app/logs
 
+# Create media directories and set permissions
+RUN mkdir -p /app/media/uploads/ckeditor /app/media/about && \
+    chmod -R 777 /app/media
+
 ENTRYPOINT ["/entrypoint"]

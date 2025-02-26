@@ -3,9 +3,11 @@
 from django.db.models import TextField, CharField, PositiveIntegerField, ForeignKey, CASCADE, \
     ImageField, JSONField, SlugField, SET_NULL, EmailField, URLField
 from django.utils.translation import gettext_lazy as _
+from safedelete.models import SafeDeleteModel
 from django_ckeditor_5.fields import CKEditor5Field
 
 from shared.django import BaseModel
+from app.fields import ExperienceYearField
 
 
 class About(BaseModel):
@@ -13,8 +15,11 @@ class About(BaseModel):
     title = CharField(_('Title'), max_length=255)
     subtitle = CharField(_('Subtitle'), max_length=255)
     description = CKEditor5Field(_('Description'))
-    image = ImageField(_('Image'), upload_to='about/')
-    experience_years = JSONField(_('Experience Years'))
+    # image = ImageField(_('Image'), upload_to='about/')
+    experience_years = ExperienceYearField(
+        _('Experience Years'),
+        help_text=_('Enter years of experience and title (e.g., {"years": 28, "title": "Years of Medical Practice"})')
+    )
     slug = SlugField(_('Slug'), unique=True)
 
     class Meta:
@@ -27,7 +32,7 @@ class AboutHighlight(BaseModel):
     """Highlights for About page."""
     about = ForeignKey('app.About', CASCADE, related_name='highlights')
     title = CharField(_('Title'), max_length=255)
-    description = TextField(_('Description'))
+    # description = TextField(_('Description'))
     order = PositiveIntegerField(_('Order'), default=0, db_index=True)
 
     class Meta:

@@ -1,6 +1,5 @@
-from adminsortable2.admin import SortableAdminMixin, SortableInlineAdminMixin
-from django.contrib import admin
-from django.contrib.admin import TabularInline, register, ModelAdmin
+from adminsortable2.admin import SortableAdminMixin, SortableInlineAdminMixin, SortableAdminBase, SortableTabularInline
+from django.contrib.admin import register, ModelAdmin, TabularInline
 from mptt.admin import DraggableMPTTAdmin
 
 from app.models.pages import (
@@ -14,10 +13,11 @@ class AboutHighlightInline(SortableInlineAdminMixin, TabularInline):
     """Inline admin for AboutHighlight with sorting capability."""
     model = AboutHighlight
     extra = 1
+    template = 'admin/edit_inline/tabular.html'
 
 
 @register(About)
-class AboutAdmin(SortableAdminMixin, ModelAdmin):
+class AboutAdmin(SortableAdminBase, ModelAdmin):
     """Admin interface for About model."""
     list_display = ['title', 'subtitle']
     prepopulated_fields = {'slug': ('title',)}
@@ -74,6 +74,7 @@ class AnswerOptionAdmin(DraggableMPTTAdmin, SortableAdminMixin, ModelAdmin):
     def indented_title(self, obj):
         """Return the indented title for MPTT tree display."""
         return obj.text
+
     indented_title.short_description = 'Text'
 
 

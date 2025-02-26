@@ -195,6 +195,77 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
+# CKEditor Configuration
+customColorPalette = [
+    {'color': 'hsl(4, 90%, 58%)', 'label': 'Red'},
+    {'color': 'hsl(340, 82%, 52%)', 'label': 'Pink'},
+    {'color': 'hsl(291, 64%, 42%)', 'label': 'Purple'},
+    {'color': 'hsl(262, 52%, 47%)', 'label': 'Deep Purple'},
+    {'color': 'hsl(231, 48%, 48%)', 'label': 'Indigo'},
+    {'color': 'hsl(207, 90%, 54%)', 'label': 'Blue'},
+    {'color': 'hsl(199, 98%, 48%)', 'label': 'Light Blue'},
+    {'color': 'hsl(187, 100%, 42%)', 'label': 'Cyan'},
+    {'color': 'hsl(174, 100%, 29%)', 'label': 'Teal'},
+    {'color': 'hsl(122, 39%, 49%)', 'label': 'Green'},
+    {'color': 'hsl(88, 50%, 53%)', 'label': 'Light Green'},
+    {'color': 'hsl(66, 70%, 54%)', 'label': 'Lime'},
+    {'color': 'hsl(49, 98%, 60%)', 'label': 'Yellow'},
+    {'color': 'hsl(45, 100%, 51%)', 'label': 'Amber'},
+    {'color': 'hsl(36, 100%, 50%)', 'label': 'Orange'},
+    {'color': 'hsl(14, 91%, 54%)', 'label': 'Deep Orange'},
+    {'color': 'hsl(15, 25%, 34%)', 'label': 'Brown'},
+    {'color': 'hsl(0, 0%, 62%)', 'label': 'Grey'},
+    {'color': 'hsl(200, 18%, 46%)', 'label': 'Blue Grey'},
+    {'color': 'hsl(200, 18%, 100%)', 'label': 'White'},
+]
+
+CKEDITOR_5_CONFIGS = {
+    'default': {
+        'toolbar': ['heading', '|', 'bold', 'italic', 'link',
+                   'bulletedList', 'numberedList', 'blockQuote', '|',
+                   'imageUpload', 'insertTable', 'mediaEmbed', '|',
+                   'undo', 'redo', '|', 'sourceEditing'],
+        'heading': {
+            'options': [
+                {'model': 'paragraph', 'title': 'Paragraph', 'class': 'ck-heading_paragraph'},
+                {'model': 'heading1', 'view': 'h1', 'title': 'Heading 1', 'class': 'ck-heading_heading1'},
+                {'model': 'heading2', 'view': 'h2', 'title': 'Heading 2', 'class': 'ck-heading_heading2'},
+                {'model': 'heading3', 'view': 'h3', 'title': 'Heading 3', 'class': 'ck-heading_heading3'}
+            ]
+        },
+        'image': {
+            'toolbar': ['imageTextAlternative', 'imageStyle:full', 'imageStyle:side']
+        },
+        'table': {
+            'contentToolbar': ['tableColumn', 'tableRow', 'mergeTableCells']
+        },
+        'fontSize': {
+            'options': [9, 11, 13, 'default', 17, 19, 21]
+        },
+        'color': {
+            'colors': customColorPalette,
+            'columns': 5,
+        },
+        'alignment': {
+            'options': ['left', 'center', 'right', 'justify']
+        },
+        'language': {
+            'ui': 'en',
+            'content': 'en'
+        },
+        'height': '400px',
+        'width': '100%',
+    }
+}
+
+CKEDITOR_5_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
+CKEDITOR_5_UPLOAD_PATH = "uploads/ckeditor/"
+# CKEDITOR_5_CUSTOM_CSS = "path-to-custom.css"  # Optional
+CKEDITOR_5_CONFIGS_PROFILE = 'default'  # The profile to use as default
+
+CKEDITOR_5_UPLOAD_FILE_TYPES = "image/jpeg,image/png,image/gif"
+CKEDITOR_5_MAX_UPLOAD_SIZE = 5 * 1024 * 1024  # 5MB max file size
+
 # Logs configuration
 LOGGING = {
     'version': 1,
@@ -344,7 +415,9 @@ JAZZMIN_SETTINGS = {
     "icons": {
         "auth": "fas fa-users-cog",
         "auth.user": "fas fa-user",
+        "users.User": "fas fa-user",
         "auth.Group": "fas fa-users",
+        "admin.LogEntry": "fas fa-file",
         
         # Pages
         "app.about": "fas fa-info-circle",
@@ -365,6 +438,16 @@ JAZZMIN_SETTINGS = {
     # Add support dark theme
     "show_ui_builder": True,
     "dark_mode_theme": "darkly",
+    "custom_css": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css",
+    "custom_js": None,
+    "use_google_fonts_cdn": True,
+    "related_modal_active": True,
+    "custom_links": {},
+    "default_icon_parents": "fas fa-chevron-circle-right",
+    "default_icon_children": "fas fa-arrow-circle-right",
+    "hide_apps": [],
+    "hide_models": [],
+    "order_with_respect_to": [],
 }
 
 # Cache Configuration
