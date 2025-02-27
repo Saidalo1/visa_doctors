@@ -1,11 +1,11 @@
 """Base models for the project."""
-from django.db.models import DateTimeField
+from django.db.models import DateTimeField, Model
 from django.utils.translation import gettext_lazy as _
 from safedelete.models import SOFT_DELETE_CASCADE
 from safedelete.models import SafeDeleteModel
 
 
-class TimeBaseModel:
+class TimeBaseModel(Model):
     """Base model with timestamps."""
     created_at = DateTimeField(_('Created at'), auto_now_add=True)
     updated_at = DateTimeField(_('Updated at'), auto_now=True)

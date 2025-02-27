@@ -1,11 +1,9 @@
 from django.contrib import admin
 from django.urls import path, include, re_path
-from django.conf.urls.static import static
 from django.views.static import serve
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
-from root.settings import DEBUG, STATIC_ROOT, MEDIA_ROOT, STATIC_URL, MEDIA_URL
-
+from root.settings import DEBUG, STATIC_ROOT, MEDIA_ROOT
 
 urlpatterns = [
     # Admin panel
@@ -18,6 +16,9 @@ urlpatterns = [
 
     # CKEditor 5
     path("ckeditor5/", include('django_ckeditor_5.urls')),
+
+    # App URLs
+    path('', include('app.urls')),
 
     # Sentry debug
     path('sentry-debug/', lambda request: 1 / 0, name='test-sentry'),

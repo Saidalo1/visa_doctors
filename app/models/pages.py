@@ -1,9 +1,8 @@
 """Models for static pages like About, Results, Contacts, and Visas."""
 
 from django.db.models import TextField, CharField, PositiveIntegerField, ForeignKey, CASCADE, \
-    ImageField, JSONField, SlugField, SET_NULL, EmailField, URLField
+    ImageField, SlugField, SET_NULL, EmailField, URLField
 from django.utils.translation import gettext_lazy as _
-from safedelete.models import SafeDeleteModel
 from django_ckeditor_5.fields import CKEditor5Field
 
 from shared.django import BaseModel
@@ -68,6 +67,8 @@ class VisaDocument(BaseModel):
 class ResultCategory(BaseModel):
     """Category for results."""
     title = CharField(_('Title'), max_length=255)
+    subtitle = CharField(_('Subtitle'), max_length=255, blank=True)
+    description = CKEditor5Field(_('Description'), blank=True)
 
     class Meta:
         verbose_name = _('Result Category')
@@ -103,3 +104,15 @@ class ContactInfo(BaseModel):
     class Meta:
         verbose_name = _('Contact Information')
         verbose_name_plural = _('Contact Information')
+
+
+class UniversityLogo(BaseModel):
+    """University logo model."""
+    name = CharField(_('University Name'), max_length=255)
+    logo = ImageField(_('Logo'), upload_to='universities/logos/')
+    order = PositiveIntegerField(_('Order'), default=0, db_index=True)
+    
+    class Meta:
+        ordering = ['order']
+        verbose_name = _('University Logo')
+        verbose_name_plural = _('University Logos')
