@@ -2,7 +2,7 @@
 
 from django.db.models import (
     CharField, TextField, PositiveIntegerField, ForeignKey, CASCADE,
-    TextChoices, JSONField
+    TextChoices, ManyToManyField, UniqueConstraint, Q, CheckConstraint
 )
 from django.utils.translation import gettext_lazy as _
 from mptt.fields import TreeForeignKey
@@ -19,10 +19,10 @@ class Question(BaseModel):
         TEXT = 'text', _('Text')
         SINGLE_CHOICE = 'single_choice', _('Single Choice')
         MULTIPLE_CHOICE = 'multiple_choice', _('Multiple Choice')
-        DATE = 'date', _('Date')
-        FILE = 'file', _('File')
 
-    description = TextField(_('Description'))
+    title = CharField(_('Question title'), max_length=255)
+    placeholder = CharField(_('Placeholder'), max_length=255, blank=True, null=True)
+
     input_type = CharField(
         _('Input Type'),
         max_length=20,
@@ -86,8 +86,41 @@ class Response(BaseModel):
     """Response model for survey questions."""
     submission = ForeignKey('app.SurveySubmission', CASCADE, related_name='responses')
     question = ForeignKey('app.Question', CASCADE, related_name='responses')
-    answer = JSONField(_('Answer'))
+
+    # For answer options (single/multiple choice)
+    selected_options = ManyToManyField(
+        'app.AnswerOption',
+        related_name='responses',
+        blank=True,
+        verbose_name=_('Selected options')
+    )
+
+    # For text answers
+    text_answer = TextField(_('Text answer'), blank=True, null=True)
 
     class Meta:
         verbose_name = _('Response')
         verbose_name_plural = _('Responses')
+        constraints = [
+            # Ensure one response per question per submission
+            UniqueConstraint(
+                fields=['submission', 'question'],
+                name='unique_response_per_question'
+            ),
+            # Ensure text answer for text questions
+            # CheckConstraint(
+            #     check=Q(
+            #         Q(question__input_type='text', text_answer__isnull=False) |
+            #         ~Q(question__input_type='text')
+            #     ),
+            #     name='text_answer_required_for_text_questions'
+            # ),
+            # # Ensure selected options for choice questions
+            # CheckConstraint(
+            #     check=Q(
+            #         Q(question__input_type__in=['single_choice', 'multiple_choice']) |
+            #         ~Q(selected_options__isnull=True)
+            #     ),
+            #     name='options_required_for_choice_questions'
+            # )
+        ]
