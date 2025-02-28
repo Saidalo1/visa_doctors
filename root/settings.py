@@ -323,86 +323,86 @@ CKEDITOR_5_UPLOAD_FILE_TYPES = "image/jpeg,image/png,image/gif"
 CKEDITOR_5_MAX_UPLOAD_SIZE = 5 * 1024 * 1024  # 5MB max file size
 
 # Logs configuration
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'filters': {
-        'require_debug_true': {
-            '()': 'django.utils.log.RequireDebugTrue',
-        },
-        'require_debug_false': {
-            '()': 'django.utils.log.RequireDebugFalse',
-        },
-    },
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-            'style': '{',
-        },
-        'simple': {
-            'format': '{levelname} {message}',
-            'style': '{',
-        },
-    },
-    'handlers': {
-        'console': {
-            'level': 'INFO',
-            'filters': ['require_debug_true'],
-            'class': 'logging.StreamHandler',
-            'formatter': 'simple',
-        },
-        'info_file': {
-            'level': 'INFO',
-            'filters': ['require_debug_false'],
-            'class': 'logging.FileHandler',
-            'filename': join(BASE_DIR, 'logs/info.log'),
-            'formatter': 'verbose',
-        },
-        'warning_file': {
-            'level': 'WARNING',
-            'filters': ['require_debug_false'],
-            'class': 'logging.FileHandler',
-            'filename': join(BASE_DIR, 'logs/warning.log'),
-            'formatter': 'verbose',
-        },
-        'error_file': {
-            'level': 'ERROR',
-            'filters': ['require_debug_false'],
-            'class': 'logging.FileHandler',
-            'filename': join(BASE_DIR, 'logs/error.log'),
-            'formatter': 'verbose',
-        },
-        'critical_file': {
-            'level': 'CRITICAL',
-            'filters': ['require_debug_false'],
-            'class': 'logging.FileHandler',
-            'filename': join(BASE_DIR, 'logs/critical.log'),
-            'formatter': 'verbose',
-        },
-    },
-    'loggers': {
-        'django': {
-            'handlers': ['console', 'info_file', 'warning_file', 'error_file', 'critical_file'],
-            'level': 'INFO',
-            'propagate': True,
-        },
-        'django.request': {
-            'handlers': ['error_file'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-        'django.security': {
-            'handlers': ['error_file'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-        'django.db.backends': {
-            'handlers': ['error_file'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-    }
-}
+# LOGGING = {
+#     'version': 1,
+#     'disable_existing_loggers': False,
+#     'filters': {
+#         'require_debug_true': {
+#             '()': 'django.utils.log.RequireDebugTrue',
+#         },
+#         'require_debug_false': {
+#             '()': 'django.utils.log.RequireDebugFalse',
+#         },
+#     },
+#     'formatters': {
+#         'verbose': {
+#             'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+#             'style': '{',
+#         },
+#         'simple': {
+#             'format': '{levelname} {message}',
+#             'style': '{',
+#         },
+#     },
+#     'handlers': {
+#         'console': {
+#             'level': 'INFO',
+#             'filters': ['require_debug_true'],
+#             'class': 'logging.StreamHandler',
+#             'formatter': 'simple',
+#         },
+#         'info_file': {
+#             'level': 'INFO',
+#             'filters': ['require_debug_false'],
+#             'class': 'logging.FileHandler',
+#             'filename': join(BASE_DIR, 'logs/info.log'),
+#             'formatter': 'verbose',
+#         },
+#         'warning_file': {
+#             'level': 'WARNING',
+#             'filters': ['require_debug_false'],
+#             'class': 'logging.FileHandler',
+#             'filename': join(BASE_DIR, 'logs/warning.log'),
+#             'formatter': 'verbose',
+#         },
+#         'error_file': {
+#             'level': 'ERROR',
+#             'filters': ['require_debug_false'],
+#             'class': 'logging.FileHandler',
+#             'filename': join(BASE_DIR, 'logs/error.log'),
+#             'formatter': 'verbose',
+#         },
+#         'critical_file': {
+#             'level': 'CRITICAL',
+#             'filters': ['require_debug_false'],
+#             'class': 'logging.FileHandler',
+#             'filename': join(BASE_DIR, 'logs/critical.log'),
+#             'formatter': 'verbose',
+#         },
+#     },
+#     'loggers': {
+#         'django': {
+#             'handlers': ['console', 'info_file', 'warning_file', 'error_file', 'critical_file'],
+#             'level': 'INFO',
+#             'propagate': True,
+#         },
+#         'django.request': {
+#             'handlers': ['error_file'],
+#             'level': 'ERROR',
+#             'propagate': False,
+#         },
+#         'django.security': {
+#             'handlers': ['error_file'],
+#             'level': 'ERROR',
+#             'propagate': False,
+#         },
+#         'django.db.backends': {
+#             'handlers': ['error_file'],
+#             'level': 'ERROR',
+#             'propagate': False,
+#         },
+#     }
+# }
 
 # Security Settings
 SECURE_BROWSER_XSS_FILTER = True
