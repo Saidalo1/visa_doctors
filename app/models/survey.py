@@ -2,7 +2,8 @@
 
 from django.db.models import (
     CharField, TextField, PositiveIntegerField, ForeignKey, CASCADE,
-    TextChoices, ManyToManyField, UniqueConstraint, Q, CheckConstraint
+    TextChoices, ManyToManyField, UniqueConstraint, Q, CheckConstraint,
+    BooleanField
 )
 from django.utils.translation import gettext_lazy as _
 from mptt.fields import TreeForeignKey
@@ -49,6 +50,8 @@ class AnswerOption(MPTTModel, BaseModel):
         related_name='children'
     )
     order = PositiveIntegerField(_('Order'), default=0, db_index=True)
+    is_selectable = BooleanField(_('Is Selectable'), default=True)
+    has_custom_input = BooleanField(_('Has Custom Input'), default=False, help_text=_('Allow custom text input for this option'))
 
     class Meta:
         ordering = ['order']
@@ -58,6 +61,9 @@ class AnswerOption(MPTTModel, BaseModel):
     class MPTTMeta:
         """MPTT model meta."""
         order_insertion_by = ['order']
+
+    def __str__(self):
+        return self.text
 
 
 class SurveySubmission(BaseModel):
@@ -106,21 +112,5 @@ class Response(BaseModel):
             UniqueConstraint(
                 fields=['submission', 'question'],
                 name='unique_response_per_question'
-            ),
-            # Ensure text answer for text questions
-            # CheckConstraint(
-            #     check=Q(
-            #         Q(question__input_type='text', text_answer__isnull=False) |
-            #         ~Q(question__input_type='text')
-            #     ),
-            #     name='text_answer_required_for_text_questions'
-            # ),
-            # # Ensure selected options for choice questions
-            # CheckConstraint(
-            #     check=Q(
-            #         Q(question__input_type__in=['single_choice', 'multiple_choice']) |
-            #         ~Q(selected_options__isnull=True)
-            #     ),
-            #     name='options_required_for_choice_questions'
-            # )
+            )
         ]

@@ -9,6 +9,9 @@ psycopg2-binary==2.9.9
 
 # API and REST
 django-cors-headers==4.3.1
+
+# Admin customization
+git+https://github.com/nicolochiellini/django-modeladmin-reorder.git@master
 djangorestframework==3.15.2
 drf-spectacular==0.27.1
 

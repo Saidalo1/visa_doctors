@@ -1,7 +1,10 @@
 from adminsortable2.admin import SortableAdminMixin, SortableInlineAdminMixin, SortableAdminBase, SortableTabularInline
 from django.contrib.admin import register, ModelAdmin, TabularInline, StackedInline
+from django.forms import BaseInlineFormSet
 from django.utils.html import format_html
+from django.utils.translation import gettext_lazy as _
 from mptt.admin import DraggableMPTTAdmin
+from rest_framework.exceptions import ValidationError
 
 from app.models.pages import (
     About, AboutHighlight, VisaType, VisaDocument,
@@ -72,7 +75,7 @@ class ResponseInline(StackedInline):
     fields = ['question', 'get_answer_display']
     can_delete = False
     max_num = 0
-    
+
     def get_answer_display(self, obj):
         """Format answer display based on question type."""
         if obj.question.input_type in [Question.InputType.SINGLE_CHOICE, Question.InputType.MULTIPLE_CHOICE]:
@@ -81,6 +84,7 @@ class ResponseInline(StackedInline):
                 '<br>'.join(f'• {opt.text}' for opt in options)
             ) if options else '-'
         return obj.text_answer or '-'
+
     get_answer_display.short_description = 'Answer'
 
 
@@ -91,19 +95,12 @@ class SurveySubmissionAdmin(ModelAdmin):
     list_filter = ['status', 'created_at']
     readonly_fields = ['created_at']
     inlines = [ResponseInline]
-    
+
     def get_responses_count(self, obj):
         """Get number of responses in submission."""
         return obj.responses.count()
+
     get_responses_count.short_description = 'Responses'
-
-
-@register(Question)
-class QuestionAdmin(SortableAdminMixin, ModelAdmin):
-    """Admin interface for Question model."""
-    list_display = ['title', 'input_type', 'order']
-    list_filter = ['input_type']
-    search_fields = ['title']
 
 
 @register(AnswerOption)
@@ -114,15 +111,59 @@ class AnswerOptionAdmin(DraggableMPTTAdmin, SortableAdminMixin, ModelAdmin):
     list_filter = ['question']
     search_fields = ['text']
     mptt_indent_field = "text"
-    
+
     def indented_title(self, obj):
         """Return the indented title for MPTT tree display."""
         return obj.text
+
     indented_title.short_description = 'Text'
 
 
-@register(Response)
-class ResponseAdmin(ModelAdmin):
-    """Admin interface for Response model."""
-    list_display = ['submission', 'question']
-    list_filter = ['submission', 'question']
+class AnswerOptionInlineFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        # self.instance is the parent Question instance
+        input_type = self.instance.input_type
+
+        # Count forms that are not marked for deletion and have no errors
+        valid_forms = [
+            form for form in self.forms
+            if not form.cleaned_data.get('DELETE', False) and not form.errors
+        ]
+
+        if input_type in ('single_choice', 'multiple_choice'):
+            # Require at least 2 options for single/multiple choice input types
+            if len(valid_forms) < 2:
+                raise ValidationError(
+                    _('At least 2 answer options are required for single/multiple choice.')
+                )
+
+
+class AnswerOptionInline(StackedInline):
+    """Inline admin for AnswerOption model."""
+    model = AnswerOption
+    formset = AnswerOptionInlineFormSet
+    extra = 2
+    # min_num = 2
+    fields = 'text', 'parent', 'has_custom_input'
+
+
+@register(Question)
+class QuestionAdmin(SortableAdminMixin, ModelAdmin):
+    """Admin interface for Question model."""
+    list_display = ['title', 'input_type', 'order']
+    list_filter = ['input_type']
+    search_fields = ['title']
+    inlines = [AnswerOptionInline]
+
+    class Media:
+        js = (
+            'js/hide_answer_options.js',
+        )
+
+# Temporarily hide Response admin
+# @register(Response)
+# class ResponseAdmin(ModelAdmin):
+#     """Admin interface for Response model."""
+#     list_display = ['submission', 'question']
+#     list_filter = ['submission', 'question']

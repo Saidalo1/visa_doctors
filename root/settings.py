@@ -60,9 +60,65 @@ INSTALLED_APPS = [
 
     # Local apps
     'app.apps.AppConfig',
+    'admin_reorder',
 ]
 
+# Admin reordering configuration
+ADMIN_REORDER = (
+    # Survey Management
+    {
+        'app': 'app',
+        'label': 'Survey Submissions',
+        'models': (
+            'app.SurveySubmission',
+        )
+    },
+    {
+        'app': 'app',
+        'label': 'Survey Configuration',
+        'models': (
+            'app.Question',
+            'app.AnswerOption',
+        )
+    },
+    # Content Management
+    {
+        'app': 'app',
+        'label': 'Pages',
+        'models': (
+            'app.About',
+            'app.AboutHighlight',
+        )
+    },
+    {
+        'app': 'app',
+        'label': 'Visa Information',
+        'models': (
+            'app.VisaType',
+            'app.VisaDocument',
+        )
+    },
+    {
+        'app': 'app',
+        'label': 'Results',
+        'models': (
+            'app.ResultCategory',
+            'app.Result',
+        )
+    },
+    # Additional Information
+    {
+        'app': 'app',
+        'label': 'Additional Info',
+        'models': (
+            'app.UniversityLogo',
+            'app.ContactInfo',
+        )
+    },
+)
+
 MIDDLEWARE = [
+    'admin_reorder.middleware.ModelAdminReorder',
     # Default middlewares
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -162,14 +218,14 @@ USE_I18N = True
 USE_TZ = False
 
 # Static files (CSS, JavaScript, Images)
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = join(BASE_DIR, 'static')
-STATICFILES_DIRS = [
-    join(BASE_DIR, 'staticfiles'),
-]
+# STATICFILES_DIRS = [
+#     join(BASE_DIR, 'staticfiles'),
+# ]
 
 # Media files
-MEDIA_URL = 'media/'
+MEDIA_URL = '/media/'
 MEDIA_ROOT = join(BASE_DIR, 'media')
 
 # CORS Configuration
@@ -222,9 +278,9 @@ customColorPalette = [
 CKEDITOR_5_CONFIGS = {
     'default': {
         'toolbar': ['heading', '|', 'bold', 'italic', 'link',
-                   'bulletedList', 'numberedList', 'blockQuote', '|',
-                   'imageUpload', 'insertTable', 'mediaEmbed', '|',
-                   'undo', 'redo', '|', 'sourceEditing'],
+                    'bulletedList', 'numberedList', 'blockQuote', '|',
+                    'imageUpload', 'insertTable', 'mediaEmbed', '|',
+                    'undo', 'redo', '|', 'sourceEditing'],
         'heading': {
             'options': [
                 {'model': 'paragraph', 'title': 'Paragraph', 'class': 'ck-heading_paragraph'},
@@ -458,7 +514,7 @@ JAZZMIN_SETTINGS = {
         "users.User": "fas fa-user",
         "auth.Group": "fas fa-users",
         "admin.LogEntry": "fas fa-file",
-        
+
         # Pages
         "app.about": "fas fa-info-circle",
         "app.abouthighlight": "fas fa-star",
@@ -467,19 +523,20 @@ JAZZMIN_SETTINGS = {
         "app.resultcategory": "fas fa-folder",
         "app.result": "fas fa-check-circle",
         "app.contactinfo": "fas fa-address-book",
-        
+
         # Survey
         "app.question": "fas fa-question-circle",
         "app.answeroption": "fas fa-list",
         "app.surveysubmission": "fas fa-paper-plane",
         "app.response": "fas fa-reply",
     },
-    
+
     # Add support dark theme
     "show_ui_builder": True,
+    "theme": "flatly",
     "dark_mode_theme": "darkly",
     "custom_css": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css",
-    "custom_js": None,
+    "custom_js": "js/title_autocorrect.js",
     "use_google_fonts_cdn": True,
     "related_modal_active": True,
     "custom_links": {},
