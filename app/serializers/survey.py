@@ -1,5 +1,6 @@
 from drf_spectacular.utils import extend_schema_field
 from rest_framework.exceptions import ValidationError
+from rest_framework.fields import SerializerMethodField
 from rest_framework.relations import PrimaryKeyRelatedField
 from rest_framework.serializers import ModelSerializer
 
@@ -8,6 +9,7 @@ from app.models import Question, AnswerOption, SurveySubmission, Response
 
 class AnswerOptionSerializer(ModelSerializer):
     """Serializer for AnswerOption model."""
+    children = SerializerMethodField()
 
     class Meta:
         model = AnswerOption
