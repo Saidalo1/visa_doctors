@@ -36,6 +36,9 @@ class Question(BaseModel):
         ordering = ['order']
         verbose_name = _('Question')
         verbose_name_plural = _('Questions')
+        
+    def __str__(self):
+        return f"{self.title} ({self.get_input_type_display()})"
 
 
 class AnswerOption(MPTTModel, BaseModel):
@@ -86,6 +89,9 @@ class SurveySubmission(BaseModel):
     class Meta:
         verbose_name = _('Survey Submission')
         verbose_name_plural = _('Survey Submissions')
+        
+    def __str__(self):
+        return f"Submission {self.id} - {self.get_status_display()}"
 
 
 class Response(BaseModel):
@@ -114,3 +120,8 @@ class Response(BaseModel):
                 name='unique_response_per_question'
             )
         ]
+        
+    def __str__(self):
+        if self.question.input_type == self.question.InputType.TEXT:
+            return f"Text Response: {self.text_answer[:50]}..."
+        return f"Options Response: {', '.join(str(opt) for opt in self.selected_options.all())}"

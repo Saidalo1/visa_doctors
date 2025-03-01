@@ -539,6 +539,7 @@ JAZZMIN_SETTINGS = {
     "custom_css": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css",
     "custom_js": "js/title_autocorrect.js",
     "use_google_fonts_cdn": True,
+    "language_chooser": True
 }
 
 # UI Tweaks

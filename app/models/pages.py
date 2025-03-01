@@ -25,6 +25,9 @@ class About(BaseModel):
         ordering = ['id']
         verbose_name = _('About')
         verbose_name_plural = _('About')
+        
+    def __str__(self):
+        return self.title
 
 
 class AboutHighlight(BaseModel):
@@ -38,6 +41,9 @@ class AboutHighlight(BaseModel):
         ordering = ['order']
         verbose_name = _('About Highlight')
         verbose_name_plural = _('About Highlights')
+        
+    def __str__(self):
+        return f"{self.about.title} - {self.title}"
 
 
 class VisaType(BaseModel):
@@ -50,6 +56,9 @@ class VisaType(BaseModel):
         ordering = ['id']
         verbose_name = _('Visa Type')
         verbose_name_plural = _('Visa Types')
+        
+    def __str__(self):
+        return self.title
 
 
 class VisaDocument(BaseModel):
@@ -62,6 +71,9 @@ class VisaDocument(BaseModel):
         ordering = ['order']
         verbose_name = _('Visa Document')
         verbose_name_plural = _('Visa Documents')
+        
+    def __str__(self):
+        return f"{self.visa_type.title} - Document {self.order}"
 
 
 class ResultCategory(BaseModel):
@@ -73,6 +85,9 @@ class ResultCategory(BaseModel):
     class Meta:
         verbose_name = _('Result Category')
         verbose_name_plural = _('Result Categories')
+        
+    def __str__(self):
+        return self.title
 
 
 class Result(BaseModel):
@@ -89,6 +104,9 @@ class Result(BaseModel):
     class Meta:
         verbose_name = _('Result')
         verbose_name_plural = _('Results')
+        
+    def __str__(self):
+        return f"Result {self.id} - {self.category.title if self.category else 'No Category'}"
 
 
 class ContactInfo(BaseModel):
@@ -104,6 +122,9 @@ class ContactInfo(BaseModel):
     class Meta:
         verbose_name = _('Contact Information')
         verbose_name_plural = _('Contact Information')
+        
+    def __str__(self):
+        return f"{self.phone} - {self.email}"
 
 
 class UniversityLogo(BaseModel):
@@ -116,3 +137,6 @@ class UniversityLogo(BaseModel):
         ordering = ['order']
         verbose_name = _('University Logo')
         verbose_name_plural = _('University Logos')
+        
+    def __str__(self):
+        return self.name
