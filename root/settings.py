@@ -323,86 +323,86 @@ CKEDITOR_5_UPLOAD_FILE_TYPES = "image/jpeg,image/png,image/gif"
 CKEDITOR_5_MAX_UPLOAD_SIZE = 5 * 1024 * 1024  # 5MB max file size
 
 # Logs configuration
-# LOGGING = {
-#     'version': 1,
-#     'disable_existing_loggers': False,
-#     'filters': {
-#         'require_debug_true': {
-#             '()': 'django.utils.log.RequireDebugTrue',
-#         },
-#         'require_debug_false': {
-#             '()': 'django.utils.log.RequireDebugFalse',
-#         },
-#     },
-#     'formatters': {
-#         'verbose': {
-#             'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-#             'style': '{',
-#         },
-#         'simple': {
-#             'format': '{levelname} {message}',
-#             'style': '{',
-#         },
-#     },
-#     'handlers': {
-#         'console': {
-#             'level': 'INFO',
-#             'filters': ['require_debug_true'],
-#             'class': 'logging.StreamHandler',
-#             'formatter': 'simple',
-#         },
-#         'info_file': {
-#             'level': 'INFO',
-#             'filters': ['require_debug_false'],
-#             'class': 'logging.FileHandler',
-#             'filename': join(BASE_DIR, 'logs/info.log'),
-#             'formatter': 'verbose',
-#         },
-#         'warning_file': {
-#             'level': 'WARNING',
-#             'filters': ['require_debug_false'],
-#             'class': 'logging.FileHandler',
-#             'filename': join(BASE_DIR, 'logs/warning.log'),
-#             'formatter': 'verbose',
-#         },
-#         'error_file': {
-#             'level': 'ERROR',
-#             'filters': ['require_debug_false'],
-#             'class': 'logging.FileHandler',
-#             'filename': join(BASE_DIR, 'logs/error.log'),
-#             'formatter': 'verbose',
-#         },
-#         'critical_file': {
-#             'level': 'CRITICAL',
-#             'filters': ['require_debug_false'],
-#             'class': 'logging.FileHandler',
-#             'filename': join(BASE_DIR, 'logs/critical.log'),
-#             'formatter': 'verbose',
-#         },
-#     },
-#     'loggers': {
-#         'django': {
-#             'handlers': ['console', 'info_file', 'warning_file', 'error_file', 'critical_file'],
-#             'level': 'INFO',
-#             'propagate': True,
-#         },
-#         'django.request': {
-#             'handlers': ['error_file'],
-#             'level': 'ERROR',
-#             'propagate': False,
-#         },
-#         'django.security': {
-#             'handlers': ['error_file'],
-#             'level': 'ERROR',
-#             'propagate': False,
-#         },
-#         'django.db.backends': {
-#             'handlers': ['error_file'],
-#             'level': 'ERROR',
-#             'propagate': False,
-#         },
-#     }
-# }
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'filters': {
+        'require_debug_true': {
+            '()': 'django.utils.log.RequireDebugTrue',
+        },
+        'require_debug_false': {
+            '()': 'django.utils.log.RequireDebugFalse',
+        },
+    },
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'INFO',
+            'filters': ['require_debug_true'],
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        'info_file': {
+            'level': 'INFO',
+            'filters': ['require_debug_false'],
+            'class': 'logging.FileHandler',
+            'filename': join(BASE_DIR, 'logs/info.log'),
+            'formatter': 'verbose',
+        },
+        'warning_file': {
+            'level': 'WARNING',
+            'filters': ['require_debug_false'],
+            'class': 'logging.FileHandler',
+            'filename': join(BASE_DIR, 'logs/warning.log'),
+            'formatter': 'verbose',
+        },
+        'error_file': {
+            'level': 'ERROR',
+            'filters': ['require_debug_false'],
+            'class': 'logging.FileHandler',
+            'filename': join(BASE_DIR, 'logs/error.log'),
+            'formatter': 'verbose',
+        },
+        'critical_file': {
+            'level': 'CRITICAL',
+            'filters': ['require_debug_false'],
+            'class': 'logging.FileHandler',
+            'filename': join(BASE_DIR, 'logs/critical.log'),
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'info_file', 'warning_file', 'error_file', 'critical_file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'django.request': {
+            'handlers': ['error_file'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'django.security': {
+            'handlers': ['error_file'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'django.db.backends': {
+            'handlers': ['error_file'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+    }
+}
 
 # Security Settings
 SECURE_BROWSER_XSS_FILTER = True
@@ -472,42 +472,41 @@ REST_FRAMEWORK = {
 
 # Jazzmin Settings
 JAZZMIN_SETTINGS = {
-    # Title on the login screen
+    # Core settings
     "site_title": "Visa Doctors Admin",
-
-    # Title on the brand (19 chars max)
     "site_header": "Visa Doctors",
-
-    # Square logo to use for your site
+    "site_brand": "Visa Doctors",
     "site_logo": None,
-
-    # Welcome text on the login screen
+    "login_logo": None,
+    "login_logo_dark": None,
+    "site_logo_classes": "img-circle",
+    "site_icon": None,
     "welcome_sign": "Welcome to Visa Doctors",
-
-    # Copyright on the footer
     "copyright": "Visa Doctors Ltd",
-
-    # List of model admins to search from the search bar
     "search_model": ["auth.User", "auth.Group"],
-
-    # Field name on user model that contains avatar image
     "user_avatar": None,
 
-    ############
-    # Top Menu #
-    ############
+    # Top Menu Items
     "topmenu_links": [
         {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},
         {"model": "auth.User"},
+        {"name": "Support", "url": "https://docs.example.com", "new_window": True},
     ],
 
-    #############
-    # Side Menu #
-    #############
+    # Side Menu Configuration
     "show_sidebar": True,
     "navigation_expanded": True,
+    "hide_apps": [],
+    "hide_models": [],
+    "order_with_respect_to": [
+        "auth",
+        "app.about",
+        "app.visatype",
+        "app.resultcategory",
+        "app.question",
+    ],
 
-    # Custom icons for side menu apps/models
+    # Icons
     "icons": {
         "auth": "fas fa-users-cog",
         "auth.user": "fas fa-user",
@@ -530,21 +529,49 @@ JAZZMIN_SETTINGS = {
         "app.surveysubmission": "fas fa-paper-plane",
         "app.response": "fas fa-reply",
     },
+    "default_icon_parents": "fas fa-chevron-circle-right",
+    "default_icon_children": "fas fa-arrow-circle-right",
 
-    # Add support dark theme
+    # UI Customizer
     "show_ui_builder": True,
-    "theme": "flatly",
-    "dark_mode_theme": "darkly",
+    "changeform_format": "horizontal_tabs",
+    "related_modal_active": True,
     "custom_css": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css",
     "custom_js": "js/title_autocorrect.js",
     "use_google_fonts_cdn": True,
-    "related_modal_active": True,
-    "custom_links": {},
-    "default_icon_parents": "fas fa-chevron-circle-right",
-    "default_icon_children": "fas fa-arrow-circle-right",
-    "hide_apps": [],
-    "hide_models": [],
-    "order_with_respect_to": [],
+}
+
+# UI Tweaks
+JAZZMIN_UI_TWEAKS = {
+    "navbar_small_text": False,
+    "footer_small_text": False,
+    "body_small_text": False,
+    "brand_small_text": False,
+    "brand_colour": None,
+    "accent": "accent-primary",
+    "navbar": "navbar-white navbar-light",
+    "no_navbar_border": False,
+    "navbar_fixed": False,
+    "layout_boxed": False,
+    "footer_fixed": False,
+    "sidebar_fixed": False,
+    "sidebar": "sidebar-dark-primary",
+    "sidebar_nav_small_text": False,
+    "sidebar_disable_expand": False,
+    "sidebar_nav_child_indent": False,
+    "sidebar_nav_compact_style": False,
+    "sidebar_nav_legacy_style": False,
+    "sidebar_nav_flat_style": False,
+    "button_classes": {
+        "primary": "btn-primary",
+        "secondary": "btn-secondary",
+        "info": "btn-info",
+        "warning": "btn-warning",
+        "danger": "btn-danger",
+        "success": "btn-success"
+    },
+    # "theme": "darkly",
+    # "dark_mode_theme": "darkly",
 }
 
 # Cache Configuration

@@ -24,9 +24,12 @@ class AboutHighlightInline(SortableTabularInline):
 @register(About)
 class AboutAdmin(SortableAdminBase, TranslationAdmin):
     """Admin interface for About model."""
-    list_display = ['title', 'subtitle']
+    list_display = ['title', 'subtitle', 'slug', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['title', 'subtitle', 'description']
     prepopulated_fields = {'slug': ('title',)}
     inlines = [AboutHighlightInline]
+    date_hierarchy = 'created_at'
 
 
 class VisaDocumentInline(SortableInlineAdminMixin, TabularInline):
@@ -38,15 +41,21 @@ class VisaDocumentInline(SortableInlineAdminMixin, TabularInline):
 @register(VisaType)
 class VisaTypeAdmin(CustomSortableAdminMixin, TranslationAdmin):
     """Admin interface for VisaType model."""
-    list_display = ['title', 'slug']
+    list_display = ['title', 'slug', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['title', 'slug']
     prepopulated_fields = {'slug': ('title',)}
     inlines = [VisaDocumentInline]
+    date_hierarchy = 'created_at'
 
 
 @register(ResultCategory)
 class ResultCategoryAdmin(TranslationAdmin):
     """Admin interface for ResultCategory model."""
-    list_display = ['title']
+    list_display = ['title', 'subtitle', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['title', 'subtitle', 'description']
+    date_hierarchy = 'created_at'
 
 
 @register(Result)
@@ -59,14 +68,20 @@ class ResultAdmin(ModelAdmin):
 @register(UniversityLogo)
 class UniversityLogoAdmin(CustomSortableAdminMixin, TranslationAdmin):
     """Admin interface for UniversityLogo model."""
-    list_display = ['name', 'logo', 'order']
+    list_display = ['name', 'logo', 'order', 'created_at']
     list_editable = ['order']
+    list_filter = ['created_at']
+    search_fields = ['name']
+    date_hierarchy = 'created_at'
 
 
 @register(ContactInfo)
 class ContactInfoAdmin(TranslationAdmin):
     """Admin interface for ContactInfo model."""
-    list_display = ['phone', 'email']
+    list_display = ['phone', 'email', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['phone', 'email', 'address']
+    date_hierarchy = 'created_at'
 
 
 class ResponseInline(StackedInline):
@@ -95,8 +110,10 @@ class SurveySubmissionAdmin(ModelAdmin):
     """Admin interface for SurveySubmission model."""
     list_display = ['id', 'status', 'created_at', 'get_responses_count']
     list_filter = ['status', 'created_at']
+    search_fields = ['id', 'responses__text_answer']
     readonly_fields = ['created_at']
     inlines = [ResponseInline]
+    date_hierarchy = 'created_at'
 
     def get_responses_count(self, obj):
         """Get number of responses in submission."""
@@ -153,10 +170,11 @@ class AnswerOptionInline(StackedInline):
 @register(Question)
 class QuestionAdmin(CustomSortableAdminMixin, TranslationAdmin):
     """Admin interface for Question model."""
-    list_display = ['title', 'input_type', 'order']
-    list_filter = ['input_type']
-    search_fields = ['title']
+    list_display = ['title', 'input_type', 'created_at', 'order']
+    list_filter = ['input_type', 'created_at']
+    search_fields = ['title', 'placeholder']
     inlines = [AnswerOptionInline]
+    date_hierarchy = 'created_at'
 
     class Media:
         js = (
