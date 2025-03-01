@@ -1,8 +1,9 @@
-from adminsortable2.admin import SortableAdminMixin, SortableInlineAdminMixin, SortableAdminBase, SortableTabularInline
+from adminsortable2.admin import SortableInlineAdminMixin, SortableAdminBase, SortableTabularInline
 from django.contrib.admin import register, ModelAdmin, TabularInline, StackedInline
 from django.forms import BaseInlineFormSet
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
+from modeltranslation.admin import TranslationAdmin
 from mptt.admin import DraggableMPTTAdmin
 from rest_framework.exceptions import ValidationError
 
@@ -11,6 +12,7 @@ from app.models.pages import (
     ResultCategory, Result, ContactInfo, UniversityLogo
 )
 from app.models.survey import Question, AnswerOption, SurveySubmission, Response
+from shared.django import CustomSortableAdminMixin
 
 
 class AboutHighlightInline(SortableTabularInline):
@@ -20,7 +22,7 @@ class AboutHighlightInline(SortableTabularInline):
 
 
 @register(About)
-class AboutAdmin(SortableAdminBase, ModelAdmin):
+class AboutAdmin(SortableAdminBase, TranslationAdmin):
     """Admin interface for About model."""
     list_display = ['title', 'subtitle']
     prepopulated_fields = {'slug': ('title',)}
@@ -34,7 +36,7 @@ class VisaDocumentInline(SortableInlineAdminMixin, TabularInline):
 
 
 @register(VisaType)
-class VisaTypeAdmin(SortableAdminMixin, ModelAdmin):
+class VisaTypeAdmin(CustomSortableAdminMixin, TranslationAdmin):
     """Admin interface for VisaType model."""
     list_display = ['title', 'slug']
     prepopulated_fields = {'slug': ('title',)}
@@ -42,7 +44,7 @@ class VisaTypeAdmin(SortableAdminMixin, ModelAdmin):
 
 
 @register(ResultCategory)
-class ResultCategoryAdmin(ModelAdmin):
+class ResultCategoryAdmin(TranslationAdmin):
     """Admin interface for ResultCategory model."""
     list_display = ['title']
 
@@ -55,14 +57,14 @@ class ResultAdmin(ModelAdmin):
 
 
 @register(UniversityLogo)
-class UniversityLogoAdmin(SortableAdminMixin, ModelAdmin):
+class UniversityLogoAdmin(CustomSortableAdminMixin, TranslationAdmin):
     """Admin interface for UniversityLogo model."""
     list_display = ['name', 'logo', 'order']
     list_editable = ['order']
 
 
 @register(ContactInfo)
-class ContactInfoAdmin(ModelAdmin):
+class ContactInfoAdmin(TranslationAdmin):
     """Admin interface for ContactInfo model."""
     list_display = ['phone', 'email']
 
@@ -104,7 +106,7 @@ class SurveySubmissionAdmin(ModelAdmin):
 
 
 @register(AnswerOption)
-class AnswerOptionAdmin(DraggableMPTTAdmin, SortableAdminMixin, ModelAdmin):
+class AnswerOptionAdmin(DraggableMPTTAdmin, CustomSortableAdminMixin, TranslationAdmin):
     """Admin interface for AnswerOption model with MPTT and sorting capabilities."""
     list_display = ['tree_actions', 'indented_title', 'question', 'order']
     list_display_links = ['indented_title']
@@ -149,7 +151,7 @@ class AnswerOptionInline(StackedInline):
 
 
 @register(Question)
-class QuestionAdmin(SortableAdminMixin, ModelAdmin):
+class QuestionAdmin(CustomSortableAdminMixin, TranslationAdmin):
     """Admin interface for Question model."""
     list_display = ['title', 'input_type', 'order']
     list_filter = ['input_type']
@@ -163,7 +165,7 @@ class QuestionAdmin(SortableAdminMixin, ModelAdmin):
 
 # Temporarily hide Response admin
 # @register(Response)
-# class ResponseAdmin(ModelAdmin):
+# class ResponseAdmin(TranslationAdmin):
 #     """Admin interface for Response model."""
 #     list_display = ['submission', 'question']
 #     list_filter = ['submission', 'question']
