@@ -7,6 +7,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         make \
         gettext \
+        git \
     && rm -rf /var/lib/apt/lists/*
 
 # Requirements are installed here to ensure they will be cached.
