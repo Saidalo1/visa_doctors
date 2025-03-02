@@ -26,7 +26,7 @@ class VisaTypeTranslationOptions(TranslationOptions):
 @register(VisaDocument)
 class VisaDocumentTranslationOptions(TranslationOptions):
     """Translation options for VisaDocument model."""
-    fields = 'description',
+    fields = 'title',
 
 
 @register(ResultCategory)

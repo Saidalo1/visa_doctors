@@ -75,7 +75,7 @@ class VisaDocumentSerializer(ModelSerializer):
 
     class Meta:
         model = VisaDocument
-        fields = 'description', 'order'
+        fields = 'title', 'order'
 
 
 class VisaTypeDetailSerializer(ModelSerializer):

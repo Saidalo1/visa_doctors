@@ -64,7 +64,7 @@ class VisaType(BaseModel):
 class VisaDocument(BaseModel):
     """Required documents for visa types."""
     visa_type = ForeignKey('app.VisaType', CASCADE, related_name='documents')
-    description = TextField(_('Description'))
+    title = CharField(_('Title'), max_length=255)
     order = PositiveIntegerField(_('Order'), default=0, db_index=True)
 
     class Meta:
