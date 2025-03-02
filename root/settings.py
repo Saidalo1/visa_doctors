@@ -136,7 +136,6 @@ MIDDLEWARE = [
 
     # CORS Middleware
     'corsheaders.middleware.CorsMiddleware',
-    'django.middleware.common.CommonMiddleware',
 ]
 
 ROOT_URLCONF = 'root.urls'
@@ -209,7 +208,7 @@ LOCALE_PATHS = [
     join(BASE_DIR, env.str('TRANSLATES_PATH', 'locale'))
 ]
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'uz'
 
 TIME_ZONE = 'Asia/Tashkent'
 

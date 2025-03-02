@@ -32,20 +32,26 @@ $(document).ready(function () {
         }
 
         const responses = questions.map(q => {
-            const selectableOptions = (q.options || []).filter(opt => opt.is_selectable);
+            const selectableOptions = (q.options || [])
+                .flatMap(opt => opt.children.length ? opt.children : opt)
+                .filter(opt => opt.is_selectable);
+
             const selectedOption = selectableOptions.length
                 ? selectableOptions[Math.floor(Math.random() * selectableOptions.length)]
                 : null;
 
             const requiresCustomInput = selectedOption && selectedOption.has_custom_input;
 
-            return {
+            const response = {
                 question: q.id,
-                selected_options: selectedOption ? [selectedOption.id] : [],
-                text_answer: q.input_type === "text" || requiresCustomInput
-                    ? `Random answer for ${q.title}`
-                    : ""
+                selected_options: selectedOption ? [selectedOption.id] : []
             };
+
+            if (q.input_type === "text" || requiresCustomInput) {
+                response.text_answer = `Random answer for ${q.title}`;
+            }
+
+            return response;
         });
 
         const requestBody = JSON.stringify({responses}, null, 2);
