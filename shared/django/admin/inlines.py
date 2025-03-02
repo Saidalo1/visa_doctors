@@ -5,19 +5,20 @@ from django.contrib.admin import TabularInline, StackedInline
 from django.forms import BaseInlineFormSet
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
+from modeltranslation.admin import TranslationTabularInline
 from rest_framework.exceptions import ValidationError
 
 from app.models.pages import AboutHighlight, VisaDocument
 from app.models.survey import Response, Question, AnswerOption
 
 
-class AboutHighlightInline(SortableTabularInline):
+class AboutHighlightInline(SortableInlineAdminMixin, TranslationTabularInline):
     """Inline admin for AboutHighlight with sorting capability."""
     model = AboutHighlight
     extra = 1
 
 
-class VisaDocumentInline(SortableInlineAdminMixin, TabularInline):
+class VisaDocumentInline(SortableInlineAdminMixin, TranslationTabularInline):
     """Inline admin for VisaDocument with sorting capability."""
     model = VisaDocument
     extra = 1
