@@ -5,6 +5,7 @@ gunicorn==22.0.0
 
 # Database and Cache
 django-redis==5.4.0
+django-cacheops==7.0.2
 psycopg2-binary==2.9.9
 
 # API and REST

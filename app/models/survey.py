@@ -96,15 +96,16 @@ class SurveySubmission(BaseModel):
 
 class Response(BaseModel):
     """Response model for survey questions."""
-    submission = ForeignKey('app.SurveySubmission', CASCADE, related_name='responses')
-    question = ForeignKey('app.Question', CASCADE, related_name='responses')
+    submission = ForeignKey('app.SurveySubmission', CASCADE, related_name='responses', db_index=True)
+    question = ForeignKey('app.Question', CASCADE, related_name='responses', db_index=True)
 
     # For answer options (single/multiple choice)
     selected_options = ManyToManyField(
         'app.AnswerOption',
         related_name='responses',
         blank=True,
-        verbose_name=_('Selected options')
+        verbose_name=_('Selected options'),
+        db_index=True
     )
 
     # For text answers
@@ -113,6 +114,7 @@ class Response(BaseModel):
     class Meta:
         verbose_name = _('Response')
         verbose_name_plural = _('Responses')
+        index_together = 'submission', 'question'
         constraints = [
             # Ensure one response per question per submission
             UniqueConstraint(

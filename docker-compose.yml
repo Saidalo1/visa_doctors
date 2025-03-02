@@ -30,14 +30,13 @@ services:
       - redis
 
   redis:
-    image: redis:7.2-alpine
+    image: redis:alpine
     restart: always
     ports:
-      - "6379:6379"
+      - '6379:6379'
+    command: redis-server --save 20 1 --loglevel warning
     volumes:
       - redis_data:/data
-      - ./compose/redis/redis.conf:/usr/local/etc/redis/redis.conf
-    command: redis-server /usr/local/etc/redis/redis.conf
 
   # postgres:
   #   image: postgres:17.4-alpine

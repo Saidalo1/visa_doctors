@@ -49,6 +49,7 @@ INSTALLED_APPS = [
 
     # Third party apps
     'adminsortable2',
+    'cacheops',  # Add cacheops
     'corsheaders',
     'debug_toolbar',
     'django_ckeditor_5',
@@ -466,6 +467,30 @@ SPECTACULAR_SETTINGS = {
     },
     "SCRIPT_URL": 'js/generate_random_answers.js'
     # "SWAGGER_UI_TEMPLATE": "drf_spectacular/swagger_ui.html"
+}
+
+# Cacheops settings
+CACHEOPS_REDIS = {
+    'unix_socket_path': None,
+    'host': env.str('REDIS_HOST', 'redis'),
+    'port': env.int('REDIS_PORT', 6379),
+    'db': env.int('REDIS_DB', 1),
+    'password': env.str('REDIS_PASSWORD', None),
+    'socket_timeout': 10,
+    'socket_connect_timeout': 10,
+    'retry_on_timeout': True,
+    'socket_keepalive': True,
+    'health_check_interval': 30,
+}
+
+# CACHEOPS_DEFAULTS = {
+#     'timeout': 60 * 60 * 24 * 7,  # 1 неделя
+#     'cache_on_save': True,
+#     'local_get': False  # Отключим локальный кэш
+# }
+
+CACHEOPS = {
+    'app.*': {'ops': ('get', 'fetch'), 'timeout': 60 * 60 * 24 * 7}  # Кэшируем только операции чтения
 }
 
 # REST Framework settings
