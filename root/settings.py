@@ -460,7 +460,9 @@ SPECTACULAR_SETTINGS = {
         'deepLinking': True,
         'persistAuthorization': True,
         'displayOperationId': True,
-    }
+    },
+    "SCRIPT_URL": 'js/generate_random_answers.js'
+    # "SWAGGER_UI_TEMPLATE": "drf_spectacular/swagger_ui.html"
 }
 
 # REST Framework settings
