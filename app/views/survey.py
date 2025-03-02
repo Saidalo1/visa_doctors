@@ -5,7 +5,7 @@ from rest_framework.generics import ListAPIView, CreateAPIView
 
 from app.models import Question, AnswerOption
 from app.serializers.survey import QuestionSerializer, SurveySubmissionSerializer
-from shared.django import SURVEY
+from shared.django import SURVEY, RecaptchaPermission
 
 
 @extend_schema_view(
@@ -67,3 +67,4 @@ class QuestionListAPIView(ListAPIView):
 class SurveySubmissionCreateAPIView(CreateAPIView):
     """API view for creating SurveySubmission."""
     serializer_class = SurveySubmissionSerializer
+    # permission_classes = [RecaptchaPermission]

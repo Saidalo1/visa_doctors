@@ -41,3 +41,9 @@ factory-boy==3.3.0
 pytest==8.0.0
 pytest-cov==4.1.0
 pytest-django==4.8.0
+
+# Security
+django-recaptcha==4.0.0
+
+# Requests
+requests==2.32.3

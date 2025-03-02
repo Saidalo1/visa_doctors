@@ -25,6 +25,5 @@ urlpatterns = [
 
     # Demand URLs
     path('questions/', QuestionListAPIView.as_view(), name='question-list'),
-    path('submit/', SurveySubmissionCreateAPIView.as_view(), name='survey-submit'),
-
+    path('submit/', SurveySubmissionCreateAPIView.as_view(), name='survey-submit')
 ]
