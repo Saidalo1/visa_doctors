@@ -9,8 +9,8 @@ from app.views import (
 
 urlpatterns = [
     # About URLs
-    path('about/<slug:slug>/preview/', AboutPreviewAPIView.as_view(), name='about-preview'),
-    path('about/<slug:slug>/detail/', AboutDetailAPIView.as_view(), name='about-detail'),
+    path('about/preview/', AboutPreviewAPIView.as_view(), name='about-preview'),
+    path('about/detail/', AboutDetailAPIView.as_view(), name='about-detail'),
 
     # Visa URLs
     path('visas/', VisaTypeListAPIView.as_view(), name='visa-list'),

@@ -23,7 +23,12 @@ class AboutPreviewAPIView(RetrieveAPIView):
     """API view for About model with preview description."""
     queryset = About.objects.prefetch_related('highlights')
     serializer_class = AboutPreviewSerializer
-    lookup_field = 'slug'
+
+    # lookup_field = 'slug'
+
+    def get_object(self):
+        """Return the first About instance."""
+        return self.get_queryset().first()
 
 
 @extend_schema_view(
@@ -37,7 +42,11 @@ class AboutDetailAPIView(RetrieveAPIView):
     """API view for About model with full description."""
     queryset = About.objects.all()
     serializer_class = AboutDetailSerializer
-    lookup_field = 'slug'
+
+    # lookup_field = 'slug'
+    def get_object(self):
+        """Return the first About instance."""
+        return self.get_queryset().first()
 
 
 @extend_schema_view(
