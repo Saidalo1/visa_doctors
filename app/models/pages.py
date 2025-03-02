@@ -1,7 +1,8 @@
 """Models for static pages like About, Results, Contacts, and Visas."""
 
 from django.db.models import TextField, CharField, PositiveIntegerField, ForeignKey, CASCADE, \
-    ImageField, SlugField, SET_NULL, EmailField, URLField
+    SlugField, SET_NULL, EmailField, URLField, ImageField
+from shared.django.fields import SVGImageField
 from django.utils.translation import gettext_lazy as _
 from django_ckeditor_5.fields import CKEditor5Field
 
@@ -50,7 +51,7 @@ class VisaType(BaseModel):
     """Visa type model."""
     title = CharField(_('Title'), max_length=255)
     slug = SlugField(_('Slug'), unique=True)
-    icon = ImageField(_('Icon'), upload_to='visas/icons/')
+    icon = SVGImageField(_('Icon'), upload_to='visas/icons/', help_text=_('Upload SVG icon'))
 
     class Meta:
         ordering = ['id']
