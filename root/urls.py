@@ -31,7 +31,7 @@ urlpatterns += i18n_patterns(
     # App URLs
     path('', include('app.urls')),
     
-    prefix_default_language=False
+    prefix_default_language=True
 )
 
 if DEBUG:
