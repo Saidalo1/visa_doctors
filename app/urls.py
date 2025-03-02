@@ -4,7 +4,8 @@ from app.views import (
     AboutPreviewAPIView, AboutDetailAPIView,
     VisaTypeListAPIView, VisaTypeDetailAPIView,
     ResultCategoryPreviewAPIView, ResultCategoryDetailAPIView,
-    UniversityLogoListAPIView, QuestionListAPIView, SurveySubmissionCreateAPIView
+    UniversityLogoListAPIView, QuestionListAPIView, SurveySubmissionCreateAPIView,
+    ContactInfoAPIView
 )
 
 urlpatterns = [
@@ -17,11 +18,14 @@ urlpatterns = [
     path('visas/<slug:slug>/', VisaTypeDetailAPIView.as_view(), name='visa-detail'),
 
     # Result URLs
-    path('results/<int:pk>/preview/', ResultCategoryPreviewAPIView.as_view(), name='result-preview'),
-    path('results/<int:pk>/detail/', ResultCategoryDetailAPIView.as_view(), name='result-detail'),
+    path('results/preview/', ResultCategoryPreviewAPIView.as_view(), name='result-preview'),
+    path('results/detail/', ResultCategoryDetailAPIView.as_view(), name='result-detail'),
 
     # University URLs
     path('universities/logos/', UniversityLogoListAPIView.as_view(), name='university-logos'),
+    
+    # Contact URLs
+    path('contacts/', ContactInfoAPIView.as_view(), name='contacts'),
 
     # Demand URLs
     path('questions/', QuestionListAPIView.as_view(), name='question-list'),

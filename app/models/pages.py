@@ -4,6 +4,7 @@ from django.db.models import TextField, CharField, PositiveIntegerField, Foreign
     SlugField, SET_NULL, EmailField, URLField, ImageField
 from django.utils.translation import gettext_lazy as _
 from django_ckeditor_5.fields import CKEditor5Field
+from django.core.exceptions import ValidationError
 
 from shared.django import BaseModel
 from shared.django.fields import SVGFileField
@@ -11,7 +12,7 @@ from app.fields import ExperienceYearField
 
 
 class About(BaseModel):
-    """About page model."""
+    """About page model. Only one instance should exist."""
     title = CharField(_('Title'), max_length=255)
     subtitle = CharField(_('Subtitle'), max_length=255)
     description = CKEditor5Field(_('Description'))
@@ -79,7 +80,7 @@ class VisaDocument(BaseModel):
 
 
 class ResultCategory(BaseModel):
-    """Category for results."""
+    """Category for results. Only one instance should exist."""
     title = CharField(_('Title'), max_length=255)
     subtitle = CharField(_('Subtitle'), max_length=255, blank=True)
     description = CKEditor5Field(_('Description'), blank=True)

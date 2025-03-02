@@ -2,6 +2,6 @@ from app.views.pages import (
     AboutPreviewAPIView, AboutDetailAPIView,
     VisaTypeListAPIView, VisaTypeDetailAPIView,
     ResultCategoryPreviewAPIView, ResultCategoryDetailAPIView,
-    UniversityLogoListAPIView
+    UniversityLogoListAPIView, ContactInfoAPIView
 )
 from app.views.survey import QuestionListAPIView, SurveySubmissionCreateAPIView

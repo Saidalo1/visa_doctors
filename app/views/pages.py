@@ -2,12 +2,12 @@ from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework.generics import RetrieveAPIView, ListAPIView
 from django.utils.translation import gettext_lazy as _
 
-from app.models.pages import About, VisaType, ResultCategory, UniversityLogo
+from app.models.pages import About, VisaType, ResultCategory, UniversityLogo, ContactInfo
 from app.serializers.pages import (
     AboutPreviewSerializer, AboutDetailSerializer,
     VisaTypeListSerializer, VisaTypeDetailSerializer,
     ResultCategoryPreviewSerializer, ResultCategoryDetailSerializer,
-    UniversityLogoSerializer
+    UniversityLogoSerializer, ContactInfoSerializer
 )
 from shared.django import ABOUT, VISA, RESULTS, UNIVERSITIES
 
@@ -23,8 +23,6 @@ class AboutPreviewAPIView(RetrieveAPIView):
     """API view for About model with preview description."""
     queryset = About.objects.prefetch_related('highlights')
     serializer_class = AboutPreviewSerializer
-
-    # lookup_field = 'slug'
 
     def get_object(self):
         """Return the first About instance."""
@@ -42,8 +40,7 @@ class AboutDetailAPIView(RetrieveAPIView):
     """API view for About model with full description."""
     queryset = About.objects.all()
     serializer_class = AboutDetailSerializer
-
-    # lookup_field = 'slug'
+    
     def get_object(self):
         """Return the first About instance."""
         return self.get_queryset().first()
@@ -87,7 +84,10 @@ class ResultCategoryPreviewAPIView(RetrieveAPIView):
     """API view for ResultCategory model with limited results."""
     queryset = ResultCategory.objects.prefetch_related('results')
     serializer_class = ResultCategoryPreviewSerializer
-    lookup_field = 'pk'
+    
+    def get_object(self):
+        """Return the first ResultCategory instance."""
+        return self.get_queryset().first()
 
 
 @extend_schema_view(
@@ -101,7 +101,10 @@ class ResultCategoryDetailAPIView(RetrieveAPIView):
     """API view for ResultCategory model with all results."""
     queryset = ResultCategory.objects.prefetch_related('results')
     serializer_class = ResultCategoryDetailSerializer
-    lookup_field = 'pk'
+    
+    def get_object(self):
+        """Return the first ResultCategory instance."""
+        return self.get_queryset().first()
 
 
 @extend_schema_view(
@@ -115,3 +118,20 @@ class UniversityLogoListAPIView(ListAPIView):
     """API view for UniversityLogo model list."""
     queryset = UniversityLogo.objects.all()
     serializer_class = UniversityLogoSerializer
+
+
+@extend_schema_view(
+    get=extend_schema(
+        summary=_("Get contact information"),
+        description=_("Returns contact information"),
+        tags=[UNIVERSITIES]
+    )
+)
+class ContactInfoAPIView(RetrieveAPIView):
+    """API view for ContactInfo model."""
+    queryset = ContactInfo.objects.all()
+    serializer_class = ContactInfoSerializer
+
+    def get_object(self):
+        """Return the first ContactInfo instance."""
+        return self.get_queryset().first()

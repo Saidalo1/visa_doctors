@@ -8,7 +8,7 @@ from app.models import (
 @register(About)
 class AboutTranslationOptions(TranslationOptions):
     """Translation options for About model."""
-    fields = 'title', 'subtitle', 'description'
+    fields = 'title', 'subtitle', 'description', 'experience_years'
 
 
 @register(AboutHighlight)

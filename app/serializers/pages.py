@@ -7,7 +7,7 @@ from rest_framework.serializers import ModelSerializer
 
 from app.models import (
     About, AboutHighlight, VisaType, VisaDocument,
-    ResultCategory, Result, UniversityLogo
+    ResultCategory, Result, UniversityLogo, ContactInfo
 )
 
 
@@ -125,3 +125,11 @@ class UniversityLogoSerializer(ModelSerializer):
     class Meta:
         model = UniversityLogo
         fields = 'name', 'logo'
+
+
+class ContactInfoSerializer(ModelSerializer):
+    """Serializer for ContactInfo model."""
+    class Meta:
+        model = ContactInfo
+        fields = ('id', 'phone', 'email', 'address', 'telegram',
+                  'instagram', 'facebook', 'youtube')
