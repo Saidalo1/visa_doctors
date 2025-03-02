@@ -26,7 +26,7 @@ class AboutAdmin(SortableAdminBase, TranslationAdmin):
 @register(VisaType)
 class VisaTypeAdmin(CustomSortableAdminMixin, TranslationAdmin):
     """Admin interface for VisaType model."""
-    list_display = ['title', 'slug', 'created_at']
+    list_display = ['title', 'slug', 'created_at', 'order']
     list_filter = ['created_at']
     search_fields = ['title', 'slug']
     prepopulated_fields = {'slug': ('title',)}

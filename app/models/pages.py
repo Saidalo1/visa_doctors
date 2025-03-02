@@ -52,9 +52,10 @@ class VisaType(BaseModel):
     title = CharField(_('Title'), max_length=255)
     slug = SlugField(_('Slug'), unique=True)
     icon = SVGFileField(_('Icon'), upload_to='visas/icons/', help_text=_('Upload SVG icon'))
+    order = PositiveIntegerField(_('Order'), default=0, db_index=True)
 
     class Meta:
-        ordering = ['id']
+        ordering = ['order']
         verbose_name = _('Visa Type')
         verbose_name_plural = _('Visa Types')
         
