@@ -27,7 +27,7 @@ from shared.django import SURVEY, RecaptchaPermission
 class QuestionListAPIView(ListAPIView):
     """API view for Question model list."""
     queryset = Question.objects.prefetch_related(
-        Prefetch('options', queryset=AnswerOption.objects.filter(level=0, parent__isnull=True)),
+        Prefetch('options', queryset=AnswerOption.objects.filter(parent__isnull=True)),
         'options__children'
     )
     serializer_class = QuestionSerializer

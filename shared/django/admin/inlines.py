@@ -2,7 +2,7 @@
 
 from adminsortable2.admin import SortableTabularInline, SortableInlineAdminMixin
 from django.contrib.admin import TabularInline, StackedInline
-from django.forms import BaseInlineFormSet
+from django.forms import BaseInlineFormSet, ModelForm
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from modeltranslation.admin import TranslationTabularInline
@@ -47,7 +47,7 @@ class ResponseInline(StackedInline):
 
 class AnswerOptionInlineFormSet(BaseInlineFormSet):
     """Form set for AnswerOption inline with validation."""
-    
+
     def clean(self):
         super().clean()
         # self.instance is the parent Question instance
@@ -67,9 +67,21 @@ class AnswerOptionInlineFormSet(BaseInlineFormSet):
                 )
 
 
+class AnswerOptionInlineForm(ModelForm):
+    class Meta:
+        model = AnswerOption
+        fields = ('text', 'parent', 'has_custom_input')
+
+
 class AnswerOptionInline(StackedInline):
     """Inline admin for AnswerOption model."""
     model = AnswerOption
     formset = AnswerOptionInlineFormSet
+    form = AnswerOptionInlineForm
     extra = 2
     fields = ('text', 'parent', 'has_custom_input')
+
+    def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
+        if db_field.name == 'parent' and self:
+            kwargs['queryset'] = AnswerOption.objects.filter(parent__isnull=True, question_id=request.path.replace('/change/', '')[-1])
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
