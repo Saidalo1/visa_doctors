@@ -29,7 +29,11 @@ SECRET_KEY = env.str('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool('DEBUG', False)
 
+# Allowed hostings
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost'])
+
+# Trusted CSRF originsZ
+CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=['localhost'])
 
 # Application definition
 INSTALLED_APPS = [
