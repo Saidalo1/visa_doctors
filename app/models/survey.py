@@ -78,7 +78,7 @@ class SurveySubmission(BaseModel):
         IN_PROGRESS = 'in_progress', _('In Progress')
         COMPLETED = 'completed', _('Completed')
         REJECTED = 'rejected', _('Rejected')
-
+        
     status = CharField(
         _('Status'),
         max_length=20,

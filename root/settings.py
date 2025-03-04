@@ -629,3 +629,11 @@ CACHES = {
 if not DEBUG:
     CACHE_MIDDLEWARE_SECONDS = 60 * 15  # 15 minutes
     CACHE_MIDDLEWARE_KEY_PREFIX = 'visa_doctors'
+
+# Telegram Notifications Configuration
+TELEGRAM_BOT_TOKEN = env.str('TELEGRAM_BOT_TOKEN', default='')
+TELEGRAM_CHAT_ID = env.str('TELEGRAM_CHAT_ID', default='')
+TELEGRAM_NOTIFICATIONS_ENABLED = env.bool('TELEGRAM_NOTIFICATIONS_ENABLED', default=False)
+
+# Base URL for admin links
+BASE_URL = env.str('BASE_URL', default='http://localhost:8000')
