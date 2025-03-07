@@ -255,6 +255,7 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
+    'x-recaptcha-token'
 ]
 
 # CKEditor Configuration
@@ -419,6 +420,7 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
 # Recaptcha
+RECAPTCHA_ENABLED = env.bool('RECAPTCHA_ENABLED', True)
 RECAPTCHA_SECRET_KEY = env.str('RECAPTCHA_SECRET_KEY')
 RECAPTCHA_REQUIRED_SCORE = env.float('RECAPTCHA_REQUIRED_SCORE')
 
