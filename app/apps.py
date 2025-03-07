@@ -7,5 +7,12 @@ class AppConfig(DefaultAppConfig):
     verbose_name = _('Application')
     
     def ready(self):
-        """Import signal handlers when app is ready."""
+        """Import signal handlers and apply patches when app is ready."""
         import app.signals  # noqa
+        
+        # Apply admin patches
+        from app.utils.admin_patches import patch_sortable_admin
+        patch_applied = patch_sortable_admin()
+        
+        if patch_applied:
+            print("Successfully applied patch for SortableAdminMixin._update_order")

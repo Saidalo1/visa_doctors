@@ -1,11 +1,11 @@
 """Admin inline classes for reuse across apps."""
 
-from adminsortable2.admin import SortableTabularInline, SortableInlineAdminMixin
-from django.contrib.admin import TabularInline, StackedInline
+from adminsortable2.admin import SortableInlineAdminMixin
+from django.contrib.admin import StackedInline
 from django.forms import BaseInlineFormSet, ModelForm
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
-from modeltranslation.admin import TranslationTabularInline
+from modeltranslation.admin import TranslationTabularInline, TranslationStackedInline
 from rest_framework.exceptions import ValidationError
 
 from app.models.pages import AboutHighlight, VisaDocument
@@ -70,16 +70,16 @@ class AnswerOptionInlineFormSet(BaseInlineFormSet):
 class AnswerOptionInlineForm(ModelForm):
     class Meta:
         model = AnswerOption
-        fields = ('text', 'parent', 'has_custom_input')
+        fields = 'text', 'parent', 'has_custom_input'
 
 
-class AnswerOptionInline(StackedInline):
+class AnswerOptionInline(TranslationStackedInline):
     """Inline admin for AnswerOption model."""
     model = AnswerOption
     formset = AnswerOptionInlineFormSet
     form = AnswerOptionInlineForm
     extra = 2
-    fields = ('text', 'parent', 'has_custom_input')
+    fields = 'text', 'parent', 'has_custom_input'
 
     def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
         if db_field.name == 'parent' and self:

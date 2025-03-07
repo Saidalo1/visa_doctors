@@ -12,6 +12,29 @@ from mptt.models import MPTTModel
 from shared.django import BaseModel
 
 
+class InputFieldType(BaseModel):
+    """Input field type model for custom validation."""
+    title = CharField(_('Field Type Name'), max_length=100)
+    regex_pattern = CharField(
+        _('Regular Expression Pattern'), 
+        max_length=255, 
+        help_text=_('Regular expression pattern for field validation')
+    )
+    error_message = CharField(
+        _('Error Message'), 
+        max_length=255, 
+        help_text=_('Error message to display when validation fails')
+    )
+
+    class Meta:
+        verbose_name = _('Input Field Type')
+        verbose_name_plural = _('Input Field Types')
+
+    def __str__(self):
+        """Return string representation."""
+        return self.title
+
+
 class Question(BaseModel):
     """Survey question model."""
 
@@ -31,13 +54,22 @@ class Question(BaseModel):
         default=InputType.TEXT
     )
     order = PositiveIntegerField(_('Order'), default=0, db_index=True)
+    field_type = ForeignKey(
+        'app.InputFieldType',
+        null=True,
+        blank=True,
+        on_delete=CASCADE,
+        related_name='questions',
+        help_text=_('Field type for validation (only applicable for text questions)')
+    )
 
     class Meta:
         ordering = ['order']
         verbose_name = _('Question')
         verbose_name_plural = _('Questions')
-        
+
     def __str__(self):
+        """Return string representation."""
         return f"{self.title} ({self.get_input_type_display()})"
 
 
@@ -54,7 +86,11 @@ class AnswerOption(MPTTModel, BaseModel):
     )
     order = PositiveIntegerField(_('Order'), default=0, db_index=True)
     is_selectable = BooleanField(_('Is Selectable'), default=True)
-    has_custom_input = BooleanField(_('Has Custom Input'), default=False, help_text=_('Allow custom text input for this option'))
+    has_custom_input = BooleanField(
+        _('Has Custom Input'), 
+        default=False, 
+        help_text=_('Allow custom text input for this option')
+    )
 
     class Meta:
         ordering = ['order']

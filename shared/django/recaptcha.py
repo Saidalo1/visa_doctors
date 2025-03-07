@@ -34,7 +34,7 @@ class RecaptchaPermission(BasePermission):
         # Get token from headers
         token = request.headers.get('X-Recaptcha-Token')
         if not token:
-            raise ValidationError('ReCaptcha token is required')
+            raise ValidationError({'token': ['ReCaptcha token is required']})
 
         # Verify token
         verify_recaptcha(token)

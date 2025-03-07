@@ -1,7 +1,9 @@
+"""Translation configuration for app models."""
 from modeltranslation.translator import register, TranslationOptions
 
 from app.models import (
-    About, AboutHighlight, VisaType, VisaDocument, ResultCategory, ContactInfo, UniversityLogo, Question, AnswerOption
+    About, AboutHighlight, VisaType, VisaDocument, ResultCategory, ContactInfo, UniversityLogo, Question, AnswerOption,
+    InputFieldType
 )
 
 
@@ -57,3 +59,9 @@ class QuestionTranslationOptions(TranslationOptions):
 class AnswerOptionTranslationOptions(TranslationOptions):
     """Translation options for AnswerOption model."""
     fields = 'text',
+
+
+@register(InputFieldType)
+class InputFieldTypeTranslationOptions(TranslationOptions):
+    """Translation options for InputFieldType model."""
+    fields = 'title', 'error_message'

@@ -83,7 +83,7 @@ ADMIN_REORDER = (
         'label': 'Survey Configuration',
         'models': (
             'app.Question',
-            'app.AnswerOption',
+            # 'app.AnswerOption',
         )
     },
     # Content Management
@@ -141,6 +141,8 @@ MIDDLEWARE = [
 
     # CORS Middleware
     'corsheaders.middleware.CorsMiddleware',
+    # Custom middlewares
+    # 'app.middleware.cache.CacheInvalidationMiddleware',
 ]
 
 ROOT_URLCONF = 'root.urls'
@@ -487,14 +489,14 @@ CACHEOPS_REDIS = {
     'health_check_interval': 30,
 }
 
-# CACHEOPS_DEFAULTS = {
-#     'timeout': 60 * 60 * 24 * 7,  # 1 неделя
-#     'cache_on_save': True,
-#     'local_get': False  # Отключим локальный кэш
-# }
+CACHEOPS_DEFAULTS = {
+    'timeout': 60 * 60 * 24 * 7,  # 1 week
+    'cache_on_save': True,
+    'local_get': False  # Disable local cache
+}
 
 CACHEOPS = {
-    'app.*': {'ops': ('get', 'fetch'), 'timeout': 60 * 60 * 24 * 7}  # Кэшируем только операции чтения
+    'app.*': {'ops': ('get', 'fetch'), 'timeout': 60 * 60 * 24 * 7, 'cache_on_save': True}
 }
 
 # REST Framework settings
@@ -637,3 +639,6 @@ TELEGRAM_NOTIFICATIONS_ENABLED = env.bool('TELEGRAM_NOTIFICATIONS_ENABLED', defa
 
 # Base URL for admin links
 BASE_URL = env.str('BASE_URL', default='http://localhost:8000')
+
+# For jazzmin
+X_FRAME_OPTIONS = 'SAMEORIGIN'

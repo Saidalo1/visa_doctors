@@ -3,8 +3,17 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.fields import SerializerMethodField
 from rest_framework.relations import PrimaryKeyRelatedField
 from rest_framework.serializers import ModelSerializer
+from re import match
 
-from app.models import Question, AnswerOption, SurveySubmission, Response
+from app.models import Question, AnswerOption, SurveySubmission, Response, InputFieldType
+
+
+class InputFieldTypeSerializer(ModelSerializer):
+    """Serializer for InputFieldType model."""
+    
+    class Meta:
+        model = InputFieldType
+        fields = 'id', 'title', 'regex_pattern', 'error_message'
 
 
 class AnswerOptionSerializer(ModelSerializer):
@@ -23,10 +32,11 @@ class AnswerOptionSerializer(ModelSerializer):
 class QuestionSerializer(ModelSerializer):
     """Serializer for Question model."""
     options = AnswerOptionSerializer(many=True, read_only=True)
+    field_type = InputFieldTypeSerializer(read_only=True)
 
     class Meta:
         model = Question
-        fields = 'id', 'title', 'input_type', 'options'
+        fields = 'id', 'title', 'input_type', 'options', 'field_type'
 
 
 class ResponseSerializer(ModelSerializer):
@@ -52,6 +62,15 @@ class ResponseSerializer(ModelSerializer):
                 raise ValidationError('Text answer is required for text input')
             if selected_options:
                 raise ValidationError('Selected options are not allowed for text input')
+            
+            # Валидация по regex, если у вопроса указан тип поля
+            if question.field_type and text_answer:
+                pattern = question.field_type.regex_pattern
+                error_msg = question.field_type.error_message
+                
+                if not match(pattern, text_answer):
+                    raise ValidationError(error_msg or f'Text answer does not match pattern {pattern}')
+                    
             return data
 
         # Для вопросов с выбором
@@ -77,14 +96,15 @@ class ResponseSerializer(ModelSerializer):
             if not has_custom_input and text_answer:
                 raise ValidationError('Text answer is not allowed without custom input option')
 
-        return data
+            # Дополнительная валидация текстового ответа по regex при наличии custom input
+            if has_custom_input and text_answer and question.field_type:
+                pattern = question.field_type.regex_pattern
+                error_msg = question.field_type.error_message
+                
+                if not match(pattern, text_answer):
+                    raise ValidationError(error_msg or f'Text answer does not match pattern {pattern}')
 
-    def create(self, validated_data):
-        """Create response with selected options and text answer."""
-        selected_options = validated_data.pop('selected_options', [])
-        response = Response.objects.create(**validated_data)
-        response.selected_options.set(selected_options)
-        return response
+        return data
 
 
 class SurveySubmissionSerializer(ModelSerializer):
@@ -95,52 +115,36 @@ class SurveySubmissionSerializer(ModelSerializer):
         model = SurveySubmission
         fields = 'id', 'responses'
 
-    def validate_responses(self, responses):
+    @staticmethod
+    def validate_responses(responses):
         """Validate that all questions are answered."""
-        # Получаем все вопросы
+        if not responses:
+            raise ValidationError('At least one response is required')
+
+        # Check for duplicate questions
+        question_ids = [resp['question'].id for resp in responses]
+        if len(question_ids) != len(set(question_ids)):
+            raise ValidationError('Duplicate questions found in responses')
+
+        # Ensure all questions are answered
         all_questions = set(Question.objects.values_list('id', flat=True))
-        
-        # Получаем ID вопросов из ответов
-        answered_questions = {response['question'].id for response in responses}
-        
-        # Проверяем что все вопросы отвечены
+        answered_questions = set(question_ids)
         missing_questions = all_questions - answered_questions
+
         if missing_questions:
-            questions = Question.objects.filter(id__in=missing_questions)
-            titles = [q.title for q in questions]
-            raise ValidationError(f'Не отвечены вопросы: {titles}')
+            raise ValidationError(f'Missing responses for questions: {missing_questions}')
 
         return responses
 
     def create(self, validated_data):
         """Create survey submission with responses."""
-        responses_data = validated_data.pop('responses')
-        
-        # Создаем новую заявку
+        responses_data = validated_data.pop('responses', [])
         submission = SurveySubmission.objects.create(**validated_data)
-        
-        # Список объектов Response для bulk create
-        responses_to_create = []
 
         for response_data in responses_data:
-            question = response_data['question']
             selected_options = response_data.pop('selected_options', [])
-            
-            # Создаем объект Response
-            response = Response(
-                submission=submission,
-                question=question,
-                text_answer=response_data.get('text_answer')
-            )
-            responses_to_create.append(response)
-            
-            # Если это вопрос с выбором и есть выбранные опции
-            if question.input_type in [Question.InputType.SINGLE_CHOICE, Question.InputType.MULTIPLE_CHOICE] and selected_options:
-                # Сохраняем Response чтобы получить ID
-                response.save()
-                response.selected_options.set(selected_options)
-        
-        # Создаем остальные Response одним запросом
-        Response.objects.bulk_create([r for r in responses_to_create if not r.id])
+            response = Response.objects.create(submission=submission, **response_data)
+            if selected_options:
+                response.selected_options.add(*selected_options)
 
         return submission

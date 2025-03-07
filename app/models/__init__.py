@@ -1,2 +1,2 @@
 from app.models.pages import About, AboutHighlight, VisaType, VisaDocument, ResultCategory, Result, ContactInfo, UniversityLogo
-from app.models.survey import Response, SurveySubmission, AnswerOption, Question
+from app.models.survey import Response, SurveySubmission, Question, AnswerOption, InputFieldType

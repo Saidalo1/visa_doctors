@@ -23,7 +23,7 @@ keepalive = 65
 # Enable auto-reload during development
 reload = True
 
-# Application name
+# Application title
 name = 'visa_doctors_web'
 
 # Access log format

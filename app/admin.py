@@ -1,11 +1,14 @@
 from adminsortable2.admin import SortableAdminBase
 from django.contrib.admin import register, ModelAdmin
+from import_export.admin import ImportExportModelAdmin
 from modeltranslation.admin import TranslationAdmin
 from mptt.admin import DraggableMPTTAdmin
 
 from app.models import (
-    About, VisaType, ResultCategory, Result, ContactInfo, UniversityLogo, Question, AnswerOption, SurveySubmission
+    About, VisaType, ResultCategory, Result, ContactInfo, UniversityLogo, Question, AnswerOption, SurveySubmission,
+    InputFieldType
 )
+from app.resource import QuestionResource, InputFieldTypeResource, SurveySubmissionResource, AnswerOptionResource
 from shared.django.admin import (
     AboutHighlightInline, VisaDocumentInline,
     ResponseInline, AnswerOptionInline, CustomSortableAdminMixin
@@ -70,8 +73,9 @@ class ContactInfoAdmin(TranslationAdmin):
 
 
 @register(SurveySubmission)
-class SurveySubmissionAdmin(ModelAdmin):
+class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
     """Admin interface for SurveySubmission model."""
+    resource_class = SurveySubmissionResource
     list_display = ['id', 'status', 'created_at', 'get_responses_count']
     list_filter = ['status', 'created_at']
     search_fields = ['id', 'responses__text_answer']
@@ -87,8 +91,9 @@ class SurveySubmissionAdmin(ModelAdmin):
 
 
 @register(AnswerOption)
-class AnswerOptionAdmin(DraggableMPTTAdmin, CustomSortableAdminMixin, TranslationAdmin):
+class AnswerOptionAdmin(ImportExportModelAdmin, DraggableMPTTAdmin, CustomSortableAdminMixin, TranslationAdmin):
     """Admin interface for AnswerOption model with MPTT and sorting capabilities."""
+    resource_class = AnswerOptionResource
     list_display = ['tree_actions', 'indented_title', 'question', 'order']
     list_display_links = ['indented_title']
     list_filter = ['question']
@@ -103,22 +108,38 @@ class AnswerOptionAdmin(DraggableMPTTAdmin, CustomSortableAdminMixin, Translatio
 
 
 @register(Question)
-class QuestionAdmin(CustomSortableAdminMixin, TranslationAdmin):
+class QuestionAdmin(ImportExportModelAdmin, CustomSortableAdminMixin, TranslationAdmin):
     """Admin interface for Question model."""
-    list_display = ['title', 'input_type', 'created_at', 'order']
-    list_filter = ['input_type', 'created_at']
+    resource_class = QuestionResource
+    list_display = ['title', 'input_type', 'field_type', 'created_at', 'order']
+    list_filter = ['input_type', 'field_type', 'created_at']
     search_fields = ['title', 'placeholder']
     inlines = [AnswerOptionInline]
     date_hierarchy = 'created_at'
+    autocomplete_fields = ['field_type']
 
     class Media:
         js = (
             'js/hide_answer_options.js',
         )
 
+
+@register(InputFieldType)
+class InputFieldTypeAdmin(ImportExportModelAdmin, TranslationAdmin):
+    """Admin interface for InputFieldType model."""
+    resource_class = InputFieldTypeResource
+    list_display = ['title', 'regex_pattern', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['title', 'regex_pattern', 'error_message']
+    date_hierarchy = 'created_at'
+    search_help_text = "Search by title, regex pattern or error message"
+
 # Temporarily hide Response admin
 # @register(Response)
-# class ResponseAdmin(TranslationAdmin):
+# class ResponseAdmin(ImportExportModelAdmin, TranslationAdmin):
 #     """Admin interface for Response model."""
-#     list_display = ['submission', 'question']
-#     list_filter = ['submission', 'question']
+#     resource_class = ResponseResource
+#     list_display = ['submission', 'question', 'text_answer', 'created_at']
+#     list_filter = ['question', 'created_at']
+#     search_fields = ['text_answer']
+#     date_hierarchy = 'created_at'
