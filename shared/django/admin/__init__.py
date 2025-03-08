@@ -1,5 +1,4 @@
 """Admin components package."""
-
 from .inlines import (
     AboutHighlightInline, VisaDocumentInline,
     ResponseInline, AnswerOptionInline,
@@ -12,5 +11,5 @@ __all__ = [
     'VisaDocumentInline',
     'ResponseInline',
     'AnswerOptionInline',
-    'AnswerOptionInlineFormSet',
+    'AnswerOptionInlineFormSet'
 ]

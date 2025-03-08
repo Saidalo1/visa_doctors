@@ -1,0 +1,506 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-03-07 10:10+0500\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+#: app/apps.py:7
+msgid "Application"
+msgstr ""
+
+#: app/fields.py:12
+msgid "Years of experience"
+msgstr ""
+
+#: app/fields.py:13 app/models/pages.py:16 app/models/pages.py:38
+#: app/models/pages.py:53 app/models/pages.py:70 app/models/pages.py:84
+msgid "Title"
+msgstr ""
+
+#: app/fields.py:41
+msgid "Years cannot be negative"
+msgstr ""
+
+#: app/fields.py:42
+msgid "Years cannot exceed 100"
+msgstr ""
+
+#: app/fields.py:69
+msgid "Value must be a dictionary"
+msgstr ""
+
+#: app/fields.py:72
+msgid "Both \"years\" and \"title\" are required"
+msgstr ""
+
+#: app/fields.py:75
+msgid "Years must be an integer"
+msgstr ""
+
+#: app/fields.py:78
+msgid "Title must be a string"
+msgstr ""
+
+#: app/fields.py:81
+msgid "Years must be between 0 and 100"
+msgstr ""
+
+#: app/fields.py:84
+msgid "Title cannot be longer than 255 characters"
+msgstr ""
+
+#: app/models/pages.py:17 app/models/pages.py:85
+msgid "Subtitle"
+msgstr ""
+
+#: app/models/pages.py:18 app/models/pages.py:86
+msgid "Description"
+msgstr ""
+
+#: app/models/pages.py:21
+msgid "Experience Years"
+msgstr ""
+
+#: app/models/pages.py:22
+msgid ""
+"Enter years of experience and title (e.g., {\"years\": 28, \"title\": "
+"\"Years of Medical Practice\"})"
+msgstr ""
+
+#: app/models/pages.py:24 app/models/pages.py:54
+msgid "Slug"
+msgstr ""
+
+#: app/models/pages.py:28 app/models/pages.py:29
+msgid "About"
+msgstr ""
+
+#: app/models/pages.py:40 app/models/pages.py:56 app/models/pages.py:71
+#: app/models/pages.py:137 app/models/survey.py:56 app/models/survey.py:87
+msgid "Order"
+msgstr ""
+
+#: app/models/pages.py:44
+msgid "About Highlight"
+msgstr ""
+
+#: app/models/pages.py:45
+msgid "About Highlights"
+msgstr ""
+
+#: app/models/pages.py:55
+msgid "Icon"
+msgstr ""
+
+#: app/models/pages.py:55
+msgid "Upload SVG icon"
+msgstr ""
+
+#: app/models/pages.py:60
+msgid "Visa Type"
+msgstr ""
+
+#: app/models/pages.py:61
+msgid "Visa Types"
+msgstr ""
+
+#: app/models/pages.py:75
+msgid "Visa Document"
+msgstr ""
+
+#: app/models/pages.py:76
+msgid "Visa Documents"
+msgstr ""
+
+#: app/models/pages.py:89
+msgid "Result Category"
+msgstr ""
+
+#: app/models/pages.py:90
+msgid "Result Categories"
+msgstr ""
+
+#: app/models/pages.py:98
+msgid "Image"
+msgstr ""
+
+#: app/models/pages.py:108
+msgid "Result"
+msgstr ""
+
+#: app/models/pages.py:109
+msgid "Results"
+msgstr ""
+
+#: app/models/pages.py:117
+msgid "Phone"
+msgstr ""
+
+#: app/models/pages.py:118
+msgid "Email"
+msgstr ""
+
+#: app/models/pages.py:119
+msgid "Address"
+msgstr ""
+
+#: app/models/pages.py:120
+msgid "Telegram"
+msgstr ""
+
+#: app/models/pages.py:121
+msgid "Instagram"
+msgstr ""
+
+#: app/models/pages.py:122
+msgid "Facebook"
+msgstr ""
+
+#: app/models/pages.py:123
+msgid "YouTube"
+msgstr ""
+
+#: app/models/pages.py:126 app/models/pages.py:127
+msgid "Contact Information"
+msgstr ""
+
+#: app/models/pages.py:135
+msgid "University Name"
+msgstr ""
+
+#: app/models/pages.py:136
+msgid "Logo"
+msgstr ""
+
+#: app/models/pages.py:141
+msgid "University Logo"
+msgstr ""
+
+#: app/models/pages.py:142
+msgid "University Logos"
+msgstr ""
+
+#: app/models/survey.py:17
+msgid "Field Type Name"
+msgstr ""
+
+#: app/models/survey.py:19
+msgid "Regular Expression Pattern"
+msgstr ""
+
+#: app/models/survey.py:21
+msgid "Regular expression pattern for field validation"
+msgstr ""
+
+#: app/models/survey.py:24
+msgid "Error Message"
+msgstr ""
+
+#: app/models/survey.py:26
+msgid "Error message to display when validation fails"
+msgstr ""
+
+#: app/models/survey.py:30
+msgid "Input Field Type"
+msgstr ""
+
+#: app/models/survey.py:31
+msgid "Input Field Types"
+msgstr ""
+
+#: app/models/survey.py:43 app/models/survey.py:79
+msgid "Text"
+msgstr ""
+
+#: app/models/survey.py:44
+msgid "Single Choice"
+msgstr ""
+
+#: app/models/survey.py:45
+msgid "Multiple Choice"
+msgstr ""
+
+#: app/models/survey.py:47
+msgid "Question title"
+msgstr ""
+
+#: app/models/survey.py:48
+msgid "Placeholder"
+msgstr ""
+
+#: app/models/survey.py:51
+msgid "Input Type"
+msgstr ""
+
+#: app/models/survey.py:63
+msgid "Field type for validation (only applicable for text questions)"
+msgstr ""
+
+#: app/models/survey.py:68
+msgid "Question"
+msgstr ""
+
+#: app/models/survey.py:69
+msgid "Questions"
+msgstr ""
+
+#: app/models/survey.py:88
+msgid "Is Selectable"
+msgstr ""
+
+#: app/models/survey.py:90
+msgid "Has Custom Input"
+msgstr ""
+
+#: app/models/survey.py:92
+msgid "Allow custom text input for this option"
+msgstr ""
+
+#: app/models/survey.py:97
+msgid "Answer Option"
+msgstr ""
+
+#: app/models/survey.py:98
+msgid "Answer Options"
+msgstr ""
+
+#: app/models/survey.py:113
+msgid "New"
+msgstr ""
+
+#: app/models/survey.py:114
+msgid "In Progress"
+msgstr ""
+
+#: app/models/survey.py:115
+msgid "Completed"
+msgstr ""
+
+#: app/models/survey.py:116
+msgid "Rejected"
+msgstr ""
+
+#: app/models/survey.py:119
+msgid "Status"
+msgstr ""
+
+#: app/models/survey.py:126
+msgid "Survey Submission"
+msgstr ""
+
+#: app/models/survey.py:127
+msgid "Survey Submissions"
+msgstr ""
+
+#: app/models/survey.py:143
+msgid "Selected options"
+msgstr ""
+
+#: app/models/survey.py:148
+msgid "Text answer"
+msgstr ""
+
+#: app/models/survey.py:151
+msgid "Response"
+msgstr ""
+
+#: app/models/survey.py:152
+msgid "Responses"
+msgstr ""
+
+#: app/serializers/survey.py:58
+msgid "Question is required"
+msgstr "Savol talab qilinadi"
+
+#: app/serializers/survey.py:63
+msgid "Text answer is required for text input"
+msgstr "Matn kiritish uchun javob talab qilinadi"
+
+#: app/serializers/survey.py:65
+msgid "Selected options are not allowed for text input"
+msgstr "Matn kiritish uchun variantlarni tanlash mumkin emas"
+
+#: app/serializers/survey.py:73
+#, python-format
+msgid "Text answer does not match pattern {}"
+msgstr "Matn javobi belgilangan shaklga mos kelmaydi {}"
+
+#: app/serializers/survey.py:80
+msgid "At least one option must be selected"
+msgstr "Kamida bitta variantni tanlash kerak"
+
+#: app/serializers/survey.py:87
+#, python-format
+msgid "Options {} do not belong to question {}"
+msgstr "Variantlar {} savol {}ga tegishli emas"
+
+#: app/serializers/survey.py:91
+msgid "Only one option can be selected for single choice"
+msgstr "Bitta tanlov uchun faqat bitta variantni tanlash mumkin"
+
+#: app/serializers/survey.py:96
+msgid "Text answer is required for option with custom input"
+msgstr "Qo'shimcha kiritish uchun matn javobi talab qilinadi"
+
+#: app/serializers/survey.py:98
+msgid "Text answer is not allowed without custom input option"
+msgstr "Qo'shimcha kiritish variantisiz matn javobi kiritilishi mumkin emas"
+
+#: app/serializers/survey.py:123
+msgid "At least one response is required"
+msgstr "Kamida bitta javob talab qilinadi"
+
+#: app/serializers/survey.py:128
+msgid "Duplicate questions found in responses"
+msgstr "Javoblar orasida takroriy savollar topildi"
+
+#: app/serializers/survey.py:136
+#, python-format
+msgid "Missing responses for questions: {}"
+msgstr "Quyidagi savollar uchun javoblar yo'q: {}"
+
+#: app/admin.py:75
+msgid "Response Filter"
+msgstr "Javob Filtri"
+
+#: app/admin.py:89
+#, python-format
+msgid "\"%s\" contains..."
+msgstr "\"%s\" tarkibida..."
+
+#: app/admin.py:97
+#, python-format
+msgid "\"%s\" is \"%s\""
+msgstr "\"%s\" — \"%s\""
+
+#: app/templates/admin/app/surveysubmission/change_list.html:12
+msgid "Text search"
+msgstr "Matn qidiruvi"
+
+#: app/templates/admin/app/surveysubmission/change_list.html:25
+msgid "Search text"
+msgstr "Matn qidirish"
+
+#: app/templates/admin/app/surveysubmission/change_list.html:29
+msgid "Search"
+msgstr "Qidirish"
+
+#: app/templates/admin/app/surveysubmission/change_list.html:33
+msgid "Clear"
+msgstr "Tozalash"
+
+#: app/views/pages.py:17
+msgid "Get about page preview"
+msgstr ""
+
+#: app/views/pages.py:18
+msgid "Returns about page with preview description and highlights"
+msgstr ""
+
+#: app/views/pages.py:34
+msgid "Get about page detail"
+msgstr ""
+
+#: app/views/pages.py:35
+msgid "Returns about page with full description"
+msgstr ""
+
+#: app/views/pages.py:51
+msgid "Get visa types list"
+msgstr ""
+
+#: app/views/pages.py:52
+msgid "Returns list of visa types with basic info"
+msgstr ""
+
+#: app/views/pages.py:64
+msgid "Get visa type detail"
+msgstr ""
+
+#: app/views/pages.py:65
+msgid "Returns visa type with documents"
+msgstr ""
+
+#: app/views/pages.py:78
+msgid "Get result category preview"
+msgstr ""
+
+#: app/views/pages.py:79
+msgid "Returns result category with first 6 results"
+msgstr ""
+
+#: app/views/pages.py:95
+msgid "Get result category detail"
+msgstr ""
+
+#: app/views/pages.py:96
+msgid "Returns result category with all results"
+msgstr ""
+
+#: app/views/pages.py:112
+msgid "Get university logos"
+msgstr ""
+
+#: app/views/pages.py:113
+msgid "Returns list of university logos"
+msgstr ""
+
+#: app/views/pages.py:125
+msgid "Get contact information"
+msgstr ""
+
+#: app/views/pages.py:126
+msgid "Returns contact information"
+msgstr ""
+
+#: root/settings.py:208
+msgid "English"
+msgstr ""
+
+#: root/settings.py:208
+msgid "Uzbek"
+msgstr ""
+
+#: shared/django/admin/inlines.py:66
+msgid "At least 2 answer options are required for single/multiple choice."
+msgstr ""
+
+#: shared/django/fields.py:13
+msgid "Only SVG files are allowed."
+msgstr ""
+
+#: shared/django/fields.py:25 shared/django/fields.py:27
+msgid "File is not a valid SVG image."
+msgstr ""
+
+#: shared/django/models.py:10
+msgid "Created at"
+msgstr ""
+
+#: shared/django/models.py:11
+msgid "Updated at"
+msgstr ""
+
+#: shared/django/recaptcha.py:38
+msgid "Invalid ReCaptcha"
+msgstr "Noto'g'ri ReCaptcha"
+
+#: shared/django/recaptcha.py:42
+msgid "ReCaptcha score too low"
+msgstr "ReCaptcha bali juda past"
+
+#: shared/django/recaptcha.py:59
+msgid "ReCaptcha token is required"
+msgstr "ReCaptcha tokeni talab qilinadi"

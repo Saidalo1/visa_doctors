@@ -46,6 +46,7 @@ class Question(BaseModel):
 
     title = CharField(_('Question title'), max_length=255)
     placeholder = CharField(_('Placeholder'), max_length=255, blank=True, null=True)
+    is_required = BooleanField(_('Is required'), default=True)
 
     input_type = CharField(
         _('Input Type'),

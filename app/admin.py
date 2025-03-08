@@ -11,8 +11,9 @@ from app.models import (
 from app.resource import QuestionResource, InputFieldTypeResource, SurveySubmissionResource, AnswerOptionResource
 from shared.django.admin import (
     AboutHighlightInline, VisaDocumentInline,
-    ResponseInline, AnswerOptionInline, CustomSortableAdminMixin
+    AnswerOptionInline, CustomSortableAdminMixin
 )
+from shared.django.admin.forms import SurveyExportForm
 
 
 @register(About)
@@ -76,18 +77,38 @@ class ContactInfoAdmin(TranslationAdmin):
 class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
     """Admin interface for SurveySubmission model."""
     resource_class = SurveySubmissionResource
-    list_display = ['id', 'status', 'created_at', 'get_responses_count']
-    list_filter = ['status', 'created_at']
-    search_fields = ['id', 'responses__text_answer']
-    readonly_fields = ['created_at']
-    inlines = [ResponseInline]
+    list_display = 'id', 'status', 'created_at', 'get_responses_count'
+    list_filter = 'status', 'created_at'
+    search_fields = 'id', 'responses__text_answer'
+    readonly_fields = 'created_at',
     date_hierarchy = 'created_at'
+    export_form_class = SurveyExportForm
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if 'answer_filter' in request.GET:
+            qs = qs.prefetch_related('responses', 'responses__selected_options')
+        return qs
 
     def get_responses_count(self, obj):
-        """Get number of responses in submission."""
         return obj.responses.count()
 
     get_responses_count.short_description = 'Responses'
+
+    def changelist_view(self, request, extra_context=None):
+        response = super().changelist_view(request, extra_context)
+        filter_value = request.GET.get('answer_filter', '')
+        if filter_value and filter_value.startswith('text_'):
+            parts = filter_value.split('_contains')
+            question_id = parts[0].replace('text_', '')
+            try:
+                question = Question.objects.get(pk=question_id)
+                if hasattr(response, 'context_data'):
+                    response.context_data['text_search_question'] = question
+                    response.context_data['text_search_value'] = request.GET.get(f'text_search_{question_id}', '')
+            except Question.DoesNotExist:
+                pass
+        return response
 
 
 @register(AnswerOption)

@@ -12,7 +12,7 @@ class AppConfig(DefaultAppConfig):
         
         # Apply admin patches
         from app.utils.admin_patches import patch_sortable_admin
-        patch_applied = patch_sortable_admin()
+        patch_sortable_admin()
         
-        if patch_applied:
-            print("Successfully applied patch for SortableAdminMixin._update_order")
+        # if patch_applied:
+        #     print("Successfully applied patch for SortableAdminMixin._update_order")
