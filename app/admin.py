@@ -1,5 +1,6 @@
 from adminsortable2.admin import SortableAdminBase
 from django.contrib.admin import register, ModelAdmin
+from django.utils.translation import gettext_lazy as _
 from import_export.admin import ImportExportModelAdmin
 from modeltranslation.admin import TranslationAdmin
 from mptt.admin import DraggableMPTTAdmin
@@ -77,25 +78,124 @@ class ContactInfoAdmin(TranslationAdmin):
 class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
     """Admin interface for SurveySubmission model."""
     resource_class = SurveySubmissionResource
-    list_display = 'id', 'status', 'created_at', 'get_responses_count'
+    list_display = 'id', 'get_full_name', 'get_phone_number', 'status', 'created_at', 'get_responses_count'
     list_filter = 'status', 'created_at'
     search_fields = 'id', 'responses__text_answer'
     readonly_fields = 'created_at',
     date_hierarchy = 'created_at'
     export_form_class = SurveyExportForm
 
+    def get_export_queryset(self, request):
+        """
+        Apply filters from the export form to the queryset.
+        
+        Args:
+            request: The HTTP request object
+            
+        Returns:
+            Filtered queryset based on export form data
+        """
+        queryset = super().get_export_queryset(request)
+        
+        # Only apply filters if the export form was submitted and is valid
+        if hasattr(self, 'export_form') and self.export_form.is_valid() and self.export_form.cleaned_data.get('apply_filters'):
+            # Log that filters are being applied
+            print(f"Applying export filters from form: {self.export_form.cleaned_data}")
+            queryset = self.export_form.get_filter_queryset(queryset)
+        
+        return queryset
+
+    def get_export_data(self, file_format, queryset, *args, **kwargs):
+        """
+        Save the export form for use in get_export_queryset.
+        
+        Args:
+            file_format: The export file format
+            queryset: The queryset to export
+            *args: Additional arguments
+            **kwargs: Additional keyword arguments including export_form
+            
+        Returns:
+            Exported data in the specified format
+        """
+        # Store the export form for later use in get_export_queryset
+        self.export_form = kwargs.get('export_form')
+        
+        # Print debug info about the form
+        if self.export_form and self.export_form.is_valid():
+            print(f"Export form data: {self.export_form.cleaned_data}")
+            
+        return super().get_export_data(file_format, queryset, *args, **kwargs)
+
     def get_queryset(self, request):
+        """
+        Optimize the queryset for the admin interface by prefetching related responses.
+        
+        Args:
+            request: The HTTP request object
+            
+        Returns:
+            Optimized queryset with prefetched related objects
+        """
         qs = super().get_queryset(request)
-        if 'answer_filter' in request.GET:
-            qs = qs.prefetch_related('responses', 'responses__selected_options')
-        return qs
+        return qs.prefetch_related('responses', 'responses__selected_options', 'responses__question')
 
     def get_responses_count(self, obj):
+        """
+        Получить количество ответов в заявке.
+        """
         return obj.responses.count()
 
-    get_responses_count.short_description = 'Responses'
+    get_responses_count.short_description = _('Responses')
+
+    def get_phone_number(self, obj):
+        """
+        Получить номер телефона из ответов, если есть вопрос с типом поля для телефона.
+        """
+        # Ищем ответ на вопрос с телефоном (по field_type или field_title)
+        try:
+            phone_response = obj.responses.filter(
+                question__field_title__icontains='phone'
+            ).first() or obj.responses.filter(
+                question__title__icontains='phone'
+            ).first() or obj.responses.filter(
+                question__field_type__title__icontains='phone'
+            ).first()
+
+            if phone_response:
+                return phone_response.text_answer
+        except Exception:
+            pass
+
+        return '-'
+
+    get_phone_number.short_description = _('Phone Number')
+
+    def get_full_name(self, obj):
+        """
+        Получить имя из ответов, если есть вопрос с именем.
+        """
+        # Ищем ответ на вопрос с именем (по field_title или title)
+        try:
+            name_response = obj.responses.filter(
+                question__field_title__icontains='name'
+            ).first() or obj.responses.filter(
+                question__title__icontains='name'
+            ).first()
+
+            if name_response:
+                return name_response.text_answer
+        except Exception:
+            pass
+
+        return '-'
+
+    get_full_name.short_description = _('Full Name')
 
     def changelist_view(self, request, extra_context=None):
+        """
+        Добавляем контекст для текстового поиска в шаблон.
+        """
         response = super().changelist_view(request, extra_context)
         filter_value = request.GET.get('answer_filter', '')
         if filter_value and filter_value.startswith('text_'):
@@ -132,12 +232,21 @@ class AnswerOptionAdmin(ImportExportModelAdmin, DraggableMPTTAdmin, CustomSortab
 class QuestionAdmin(ImportExportModelAdmin, CustomSortableAdminMixin, TranslationAdmin):
     """Admin interface for Question model."""
     resource_class = QuestionResource
-    list_display = ['title', 'input_type', 'field_type', 'created_at', 'order']
-    list_filter = ['input_type', 'field_type', 'created_at']
-    search_fields = ['title', 'placeholder']
+    list_display = ['title', 'input_type', 'field_type', 'is_required', 'created_at', 'order']
+    list_filter = ['input_type', 'field_type', 'is_required', 'created_at']
+    search_fields = ['title', 'field_type__field_title', 'placeholder']
+    list_editable = 'is_required',
     inlines = [AnswerOptionInline]
     date_hierarchy = 'created_at'
     autocomplete_fields = ['field_type']
+    fieldsets = [
+        (None, {
+            'fields': ('title', 'placeholder', 'is_required')
+        }),
+        (_('Input Configuration'), {
+            'fields': ('input_type', 'field_type')
+        })
+    ]
 
     class Media:
         js = (

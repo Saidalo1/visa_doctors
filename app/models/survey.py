@@ -2,8 +2,7 @@
 
 from django.db.models import (
     CharField, TextField, PositiveIntegerField, ForeignKey, CASCADE,
-    TextChoices, ManyToManyField, UniqueConstraint, Q, CheckConstraint,
-    BooleanField
+    TextChoices, ManyToManyField, UniqueConstraint, BooleanField
 )
 from django.utils.translation import gettext_lazy as _
 from mptt.fields import TreeForeignKey
@@ -14,15 +13,32 @@ from shared.django import BaseModel
 
 class InputFieldType(BaseModel):
     """Input field type model for custom validation."""
+
+    class FieldTypeChoice(TextChoices):
+        """Types of field for filtering and export."""
+        STRING = 'string', _('String')
+        NUMBER = 'number', _('Number')
+        CHOICES = 'choices', _('Choices')
+
     title = CharField(_('Field Type Name'), max_length=100)
+    field_key = CharField(_('Field key for export'), max_length=100, blank=True,
+                          help_text=_('Short title used in exports'))
+    field_type_choice = CharField(
+        _('Field type for filtering'),
+        max_length=20,
+        choices=FieldTypeChoice.choices,
+        default=FieldTypeChoice.STRING,
+        help_text=_('Determines how this field is filtered in exports')
+    )
     regex_pattern = CharField(
-        _('Regular Expression Pattern'), 
-        max_length=255, 
-        help_text=_('Regular expression pattern for field validation')
+        _('Regular Expression Pattern'),
+        max_length=255,
+        help_text=_('Regular expression pattern for field validation'),
+        blank=True
     )
     error_message = CharField(
-        _('Error Message'), 
-        max_length=255, 
+        _('Error Message'),
+        max_length=255,
         help_text=_('Error message to display when validation fails')
     )
 
@@ -88,8 +104,8 @@ class AnswerOption(MPTTModel, BaseModel):
     order = PositiveIntegerField(_('Order'), default=0, db_index=True)
     is_selectable = BooleanField(_('Is Selectable'), default=True)
     has_custom_input = BooleanField(
-        _('Has Custom Input'), 
-        default=False, 
+        _('Has Custom Input'),
+        default=False,
         help_text=_('Allow custom text input for this option')
     )
 
@@ -115,7 +131,7 @@ class SurveySubmission(BaseModel):
         IN_PROGRESS = 'in_progress', _('In Progress')
         COMPLETED = 'completed', _('Completed')
         REJECTED = 'rejected', _('Rejected')
-        
+
     status = CharField(
         _('Status'),
         max_length=20,
@@ -126,7 +142,7 @@ class SurveySubmission(BaseModel):
     class Meta:
         verbose_name = _('Survey Submission')
         verbose_name_plural = _('Survey Submissions')
-        
+
     def __str__(self):
         return f"Submission {self.id} - {self.get_status_display()}"
 
@@ -159,7 +175,7 @@ class Response(BaseModel):
                 name='unique_response_per_question'
             )
         ]
-        
+
     def __str__(self):
         if self.question.input_type == self.question.InputType.TEXT:
             return f"Text Response: {self.text_answer[:50]}..."

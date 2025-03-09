@@ -1,7 +1,8 @@
 # app/resource.py
 
-from import_export import resources, fields
 from django.db.models import Prefetch
+from django.utils.translation import gettext_lazy as _
+from import_export import resources, fields
 from import_export.resources import ModelResource
 
 from app.models import SurveySubmission, Question, Response, AnswerOption, InputFieldType
@@ -10,71 +11,129 @@ from app.models import SurveySubmission, Question, Response, AnswerOption, Input
 class SurveySubmissionResource(resources.ModelResource):
     """
     Resource for SurveySubmission model import/export.
+    
+    This resource dynamically creates fields for each question in the survey,
+    allowing for customized export of survey submissions with all responses.
     """
+    id = fields.Field(column_name=_('ID'), attribute='id')
+    status = fields.Field(column_name=_('Status'), attribute='status')
+    created_at = fields.Field(column_name=_('Created At'), attribute='created_at')
 
-    def __init__(self, question_id=None, text_search=None, **kwargs):
-        # super() обязательно передавать **kwargs
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.question_id = question_id
-        self.text_search = text_search
 
-        # Пример твоей логики с динамическими полями:
-        questions = Question.objects.all().order_by('order')
+        questions = Question.objects.order_by('order')
+
         for question in questions:
             field_name = f"question_{question.id}"
-            field_label = f"{question.title}"
+            field_label = question.field_type.field_key or question.title
+
             self.fields[field_name] = fields.Field(
                 column_name=field_label,
                 attribute=None,
             )
             self.fields[field_name].question_id = question.id
+            self.fields[field_name].question_type = question.input_type
+            self.fields[field_name].field_type = question.field_type
 
     def filter_export(self, queryset, **kwargs):
         """
-        Метод, который django-import-export сам вызовет,
-        если мы укажем его в Meta -> use `filter_export`.
-        Или мы можем вызывать его вручную в get_queryset().
+        Filter the export queryset based on the provided parameters.
+        
+        This method is called by django-import-export if specified in Meta.use_export_filter,
+        or can be called manually in get_queryset().
+        
+        Args:
+            queryset: Base queryset to filter
+            **kwargs: Additional filter parameters
+            
+        Returns:
+            Filtered queryset
         """
-        if self.question_id:
-            queryset = queryset.filter(responses__question_id=self.question_id)
-        if self.text_search:
-            queryset = queryset.filter(responses__text_answer__icontains=self.text_search)
+
         return queryset
 
     def get_queryset(self):
         """
-        Optimize queryset for export + применяем filter_export.
+        Optimize queryset for export with prefetching related data.
+        
+        Returns:
+            Optimized queryset for export
         """
-        qs = SurveySubmission.objects.prefetch_related(
+        return SurveySubmission.objects.prefetch_related(
             Prefetch(
                 'responses',
                 queryset=Response.objects.select_related('question')
-                                        .prefetch_related('selected_options')
+                .prefetch_related('selected_options')
             )
         )
-        # Фильтруем
-        qs = self.filter_export(qs)
-        return qs
+
+    def get_export_order(self):
+        """
+        Define the order of fields in the export.
+        
+        Returns:
+            List of field names in the desired order
+        """
+
+        fields_order = ['id', 'status', 'created_at']
+
+        questions = Question.objects.order_by('order')
+        for question in questions:
+            fields_order.append(f"question_{question.id}")
+
+        return fields_order
 
     def dehydrate_field(self, obj, field):
         """
-        Твой метод для вывода значений вопрос/ответ.
+        Extract the value for a field from the object.
+        
+        This method handles dynamic question fields and formats the response
+        based on the question type (text, single choice, multiple choice).
+        
+        Args:
+            obj: SurveySubmission instance
+            field: Field to extract value from
+            
+        Returns:
+            Formatted value for the field
         """
+
         if hasattr(field, 'question_id'):
             try:
+
                 response = obj.responses.get(question_id=field.question_id)
+
                 if response.question.input_type == Question.InputType.TEXT:
+
+                    if hasattr(field,
+                               'field_type_choice') and field.field_type_choice == InputFieldType.FieldTypeChoice.NUMBER:
+
+                        try:
+                            if response.text_answer and response.text_answer.strip():
+                                return float(response.text_answer)
+                        except (ValueError, TypeError):
+
+                            pass
+
                     return response.text_answer or ''
+
                 selected_options = response.selected_options.all()
                 if selected_options:
+
                     custom_option = [opt for opt in selected_options if opt.has_custom_input]
+
                     if custom_option and response.text_answer:
                         options_text = [opt.text for opt in selected_options]
                         return f"{', '.join(options_text)} - {response.text_answer}"
+
                     return ', '.join([opt.text for opt in selected_options])
+
                 return response.text_answer or ''
             except Response.DoesNotExist:
+
                 return ''
+
         return super().dehydrate_field(obj, field)
 
     class Meta:
@@ -96,11 +155,28 @@ class ResponseResource(ModelResource):
 class QuestionResource(ModelResource):
     """Resource for Question model import/export."""
 
+    field_type_choice_display = fields.Field(
+        column_name=_('Field Type Choice Display'),
+        attribute='get_field_type_choice_display'
+    )
+    input_type_display = fields.Field(
+        column_name=_('Input Type Display'),
+        attribute='get_input_type_display'
+    )
+
     class Meta:
         """Meta options for Question resource."""
         model = Question
-        fields = 'id', 'title', 'placeholder', 'input_type', 'order', 'field_type__title', 'created_at'
-        export_order = 'id', 'title', 'input_type', 'field_type__title', 'order', 'created_at'
+        fields = (
+            'id', 'title', 'field_title', 'placeholder', 'is_required',
+            'input_type', 'input_type_display', 'field_type_choice', 'field_type_choice_display',
+            'order', 'field_type__title', 'created_at'
+        )
+        export_order = (
+            'id', 'title', 'field_title', 'input_type', 'input_type_display',
+            'field_type_choice', 'field_type_choice_display', 'field_type__title',
+            'is_required', 'order', 'created_at'
+        )
 
 
 class AnswerOptionResource(ModelResource):
