@@ -87,27 +87,24 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
 
     def get_export_queryset(self, request):
         """
-        Apply filters from the export form to the queryset.
+        Return the base queryset for export. Filtering will be handled by the resource's filter_export method.
         
         Args:
             request: The HTTP request object
             
         Returns:
-            Filtered queryset based on export form data
+            Base queryset for export
         """
-        queryset = super().get_export_queryset(request)
+        # We'll just log the form data for debugging but won't apply filters here
+        # as they will be applied in resource.filter_export
+        if hasattr(self, 'export_form') and self.export_form.is_valid():
+            print(f"Export form data: {self.export_form.cleaned_data}")
         
-        # Only apply filters if the export form was submitted and is valid
-        if hasattr(self, 'export_form') and self.export_form.is_valid() and self.export_form.cleaned_data.get('apply_filters'):
-            # Log that filters are being applied
-            print(f"Applying export filters from form: {self.export_form.cleaned_data}")
-            queryset = self.export_form.get_filter_queryset(queryset)
-        
-        return queryset
+        return super().get_export_queryset(request)
 
     def get_export_data(self, file_format, queryset, *args, **kwargs):
         """
-        Save the export form for use in get_export_queryset.
+        Extract data from the export form and pass it to the resource for filtering.
         
         Args:
             file_format: The export file format
@@ -118,13 +115,21 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
         Returns:
             Exported data in the specified format
         """
-        # Store the export form for later use in get_export_queryset
+        # Store the export form for later use
         self.export_form = kwargs.get('export_form')
         
-        # Print debug info about the form
+        # Extract form data to pass to the resource's filter_export method
         if self.export_form and self.export_form.is_valid():
-            print(f"Export form data: {self.export_form.cleaned_data}")
+            form_data = self.export_form.cleaned_data
+            print(f"Export form data: {form_data}")
             
+            # Add form data to kwargs that will be passed to resource.filter_export
+            # Skip file_format since it's already a positional argument
+            for key, value in form_data.items():
+                if key != 'file_format':  # Skip file_format to avoid duplicate argument
+                    kwargs[key] = value
+            
+        print(file_format, kwargs)
         return super().get_export_data(file_format, queryset, *args, **kwargs)
 
     def get_queryset(self, request):

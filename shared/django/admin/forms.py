@@ -28,7 +28,7 @@ class SurveyExportForm(ExportForm):
         for question in questions:
             field_name = f"filter_q_{question.id}"
             # Use field_title if available, otherwise use title
-            field_label = question.field_title or question.title
+            field_label = question.field_type.field_key or question.field_type.title
 
             # Create different field types based on question type
             if hasattr(question.field_type, 'field_type_choice') and question.field_type.field_type_choice == InputFieldType.FieldTypeChoice.NUMBER:

@@ -24,12 +24,12 @@ $(document).ready(function () {
             answerOptionsTab.show();
         }
 
-        // Hide field type block if input type is not 'text'
-        if (val !== 'text') {
-            $('.form-group.field-field_type').hide();
-        } else {
-            $('.form-group.field-field_type').show();
-        }
+        // // Hide field type block if input type is not 'text'
+        // if (val !== 'text') {
+        //     $('.form-group.field-field_type').hide();
+        // } else {
+        //     $('.form-group.field-field_type').show();
+        // }
     }
 
     // Bind change event and trigger on load
