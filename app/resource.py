@@ -6,6 +6,7 @@ from import_export import resources, fields
 from import_export.resources import ModelResource
 from openpyxl.styles import Alignment, Font
 from openpyxl.utils import get_column_letter
+import tablib
 
 from app.models import SurveySubmission, Question, Response, AnswerOption, InputFieldType
 
@@ -24,19 +25,32 @@ class SurveySubmissionResource(resources.ModelResource):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        questions = Question.objects.order_by('order')
+        # Get all questions sorted by order
+        questions = Question.objects.select_related('field_type').order_by('order')
 
         for question in questions:
             field_name = f"question_{question.id}"
-            field_label = question.field_type.field_key or question.title
-
+            
+            # Use field_key as column name if available, otherwise use question title
+            field_label = question.field_type.field_key if question.field_type and question.field_type.field_key else question.title
+            
+            # Create field with attribute=None because we'll use custom dehydrate methods
             self.fields[field_name] = fields.Field(
                 column_name=field_label,
-                attribute=None,
+                attribute=None
             )
+            
+            # Store question ID as a field property for debugging
             self.fields[field_name].question_id = question.id
-            self.fields[field_name].question_type = question.input_type
-            self.fields[field_name].field_type = question.field_type
+            
+            # Create a custom dehydrate method specifically for this field
+            # This is key to making the export work with dynamic fields
+            method_name = f'dehydrate_{field_name}'
+            setattr(self, method_name, 
+                    lambda obj, qid=question.id: self._get_question_value(obj, qid))
+            
+            # Print debug information about field mapping
+            # print(f"Added field {field_name} with label '{field_label}' for question ID {question.id}")
 
     def filter_export(self, queryset, **kwargs):
         """
@@ -53,7 +67,7 @@ class SurveySubmissionResource(resources.ModelResource):
             Filtered queryset
         """
         # Print debug information about the received parameters
-        print(f"SurveySubmissionResource.filter_export received kwargs: {kwargs}")
+        # print(f"SurveySubmissionResource.filter_export received kwargs: {kwargs}")
         
         # We can get the filter values from both sources:
         # 1. Directly from kwargs if admin.py added them there
@@ -71,14 +85,14 @@ class SurveySubmissionResource(resources.ModelResource):
             export_form = kwargs.get('export_form')
             if export_form and hasattr(export_form, 'cleaned_data'):
                 form_data = export_form.cleaned_data
-                print(f"Form cleaned data from export_form: {form_data}")
+                # print(f"Form cleaned data from export_form: {form_data}")
             else:
-                print("No valid export form found and no direct filter parameters")
+                # print("No valid export form found and no direct filter parameters")
                 return queryset
         
         # Check if filters should be applied
         if not form_data.get('apply_filters', False):
-            print("No filters requested")
+            # print("No filters requested")
             return queryset
         
         # Add any direct filter parameters from kwargs that aren't in form_data
@@ -106,7 +120,7 @@ class SurveySubmissionResource(resources.ModelResource):
                 
                 if value_from is not None:
                     any_filter_applied = True
-                    print(f"Applying number filter (from): {question.id} >= {value_from}")
+                    # print(f"Applying number filter (from): {question.id} >= {value_from}")
                     
                     # Use a simpler approach that's more resilient to non-numeric data
                     # Get all submissions for this question
@@ -130,7 +144,7 @@ class SurveySubmissionResource(resources.ModelResource):
                         """, [question.id, value_from])
                         valid_submission_ids = [row[0] for row in cursor.fetchall()]
                     
-                    print(f"Found {len(valid_submission_ids)} submissions with age >= {value_from}")
+                    # f(f"Found {len(valid_submission_ids)} submissions with age >= {value_from}")
                     
                     # Filter the queryset to only include these submissions
                     if valid_submission_ids:
@@ -141,7 +155,7 @@ class SurveySubmissionResource(resources.ModelResource):
                 
                 if value_to is not None:
                     any_filter_applied = True
-                    print(f"Applying number filter (to): {question.id} <= {value_to}")
+                    # print(f"Applying number filter (to): {question.id} <= {value_to}")
                     
                     # Use raw SQL to filter by numeric values safely
                     from django.db import connection
@@ -158,7 +172,7 @@ class SurveySubmissionResource(resources.ModelResource):
                         """, [question.id, value_to])
                         valid_submission_ids = [row[0] for row in cursor.fetchall()]
                     
-                    print(f"Found {len(valid_submission_ids)} submissions with age <= {value_to}")
+                    # print(f"Found {len(valid_submission_ids)} submissions with age <= {value_to}")
                     
                     # Filter the queryset to only include these submissions
                     if valid_submission_ids:
@@ -186,7 +200,7 @@ class SurveySubmissionResource(resources.ModelResource):
                         # Extract the numeric part after 'group_'
                         try:
                             parent_id = int(group_id.replace('group_', ''))
-                            print(f"Finding options for group: {parent_id}")
+                            # print(f"Finding options for group: {parent_id}")
                             
                             # Find all options that belong to this parent
                             child_options = AnswerOption.objects.filter(parent_id=parent_id).values_list('id', flat=True)
@@ -216,7 +230,7 @@ class SurveySubmissionResource(resources.ModelResource):
                 if valid_option_ids:
                     any_filter_applied = True
                     option_ids = [int(opt_id) for opt_id in valid_option_ids]
-                    print(f"Applying choice filter: {question.id} with options {option_ids}")
+                    # print(f"Applying choice filter: {question.id} with options {option_ids}")
                     
                     queryset = queryset.filter(
                         responses__question_id=question.id,
@@ -229,7 +243,7 @@ class SurveySubmissionResource(resources.ModelResource):
                 
                 if search_text:
                     any_filter_applied = True
-                    print(f"Applying text filter: {question.id} contains '{search_text}'")
+                    # print(f"Applying text filter: {question.id} contains '{search_text}'")
                     queryset = queryset.filter(
                         responses__question_id=question.id,
                         responses__text_answer__icontains=search_text
@@ -237,7 +251,7 @@ class SurveySubmissionResource(resources.ModelResource):
         
         # Log whether filters were applied and result count
         filtered_count = queryset.count()
-        print(f"Applied filters: {any_filter_applied}, filtered count: {filtered_count}")
+        # print(f"Applied filters: {any_filter_applied}, filtered count: {filtered_count}")
         
         return queryset.distinct()
 
@@ -271,13 +285,158 @@ class SurveySubmissionResource(resources.ModelResource):
             fields_order.append(f"question_{question.id}")
 
         return fields_order
+        
+    def get_export_headers(self):
+        """
+        Get the export headers for each field.
+        
+        Returns:
+            List of header names for export
+        """
+        headers = []
+        for field_name in self.get_export_order():
+            field = self.fields.get(field_name)
+            if field is not None:
+                # Use column_name if available, otherwise use field_name
+                headers.append(field.column_name or field_name)
+            else:
+                headers.append(field_name)
+        return headers
+        
+    def after_export(self, queryset, dataset, *args, **kwargs):
+        """
+        Clean up after export.
+        
+        Args:
+            queryset: The exported queryset
+            dataset: The resulting dataset
+            *args: Additional arguments
+            **kwargs: Additional keyword arguments
+            
+        Returns:
+            The dataset
+        """
+        # Clear any caches to free memory
+        self._cached_responses = {}
+        return dataset
+
+    # Оптимизируем экспорт, кэшируя данные ответов
+    _cached_responses = {}
+    
+    def before_export(self, queryset, *args, **kwargs):
+        """
+        Override before_export to prefetch all responses and cache them for better performance
+        """
+        super().before_export(queryset, *args, **kwargs)
+        
+        # Сначала получаем все ID заявок для экспорта
+        submission_ids = list(queryset.values_list('id', flat=True))[:200]  # Ограничиваем для безопасности
+        
+        # Загружаем все ответы за один запрос с нужными связями
+        all_responses = Response.objects.filter(submission_id__in=submission_ids).select_related(
+            'question', 'question__field_type'
+        ).prefetch_related(
+            'selected_options'
+        )
+        
+        # Создаем кэш ответов в формате {submission_id: {question_id: response}}
+        self._cached_responses = {}
+        for response in all_responses:
+            if response.submission_id not in self._cached_responses:
+                self._cached_responses[response.submission_id] = {}
+            
+            self._cached_responses[response.submission_id][response.question_id] = response
+    
+    def _get_question_value(self, obj, question_id):
+        """
+        Helper method to get value for a specific question from a submission
+        Uses cached responses for performance
+        
+        Args:
+            obj: SurveySubmission instance
+            question_id: ID of the question to get the value for
+            
+        Returns:
+            Formatted value for the question
+        """
+        # Используем кэш ответов для быстрого доступа
+        if obj.id not in self._cached_responses or question_id not in self._cached_responses[obj.id]:
+            return ''
+        
+        response = self._cached_responses[obj.id][question_id]
+        
+        # Получаем метаданные о типе вопроса
+        input_type = response.question.input_type
+        field_type = None
+        if response.question.field_type:
+            field_type = response.question.field_type.field_type_choice
+        
+        # Обрабатываем текстовые ответы
+        if input_type == Question.InputType.TEXT:
+            # Для числовых полей пытаемся конвертировать в float
+            if field_type == InputFieldType.FieldTypeChoice.NUMBER:
+                try:
+                    if response.text_answer and response.text_answer.strip():
+                        return float(response.text_answer)
+                except (ValueError, TypeError):
+                    pass
+            # Для обычных текстовых полей возвращаем как есть
+            return response.text_answer or ''
+        
+        # Обрабатываем вопросы с выбором
+        selected_options = list(response.selected_options.all())
+        if selected_options:
+            option_texts = [opt.text for opt in selected_options]
+            
+            # Проверяем пользовательский ввод
+            custom_option = [opt for opt in selected_options if opt.has_custom_input]
+            if custom_option and response.text_answer:
+                return f"{', '.join(option_texts)} - {response.text_answer}"
+            
+            return ', '.join(option_texts)
+        
+        # По умолчанию возвращаем текстовый ответ
+        return response.text_answer or ''
+    
+    def export_resource_fields(self, obj, fields):
+        """
+        Extract data from an object for export for the given fields.
+        This is an optimized version that uses our cached responses when possible.
+        
+        Args:
+            obj: SurveySubmission instance to export
+            fields: List of field names to export
+            
+        Returns:
+            List of field values for the given object
+        """
+        row = []
+        for field_name in fields:
+            # For dynamic question fields, we use our custom dehydrate methods
+            if field_name.startswith('question_'):
+                method = getattr(self, f'dehydrate_{field_name}', None)
+                if method:
+                    # Use the custom method directly, which will use cached data
+                    value = method(obj)
+                else:
+                    # Fallback if no method found (shouldn't happen)  
+                    value = ''
+            else:
+                # Для стандартных полей используем стандартные методы
+                field = self.fields.get(field_name)
+                if field:
+                    value = self.dehydrate_field(obj, field)
+                else:
+                    value = ''
+            row.append(value)
+        return row
 
     def dehydrate_field(self, obj, field):
         """
         Extract the value for a field from the object.
         
-        This method handles dynamic question fields and formats the response
-        based on the question type (text, single choice, multiple choice).
+        This method is only used for standard model fields, as dynamic question fields
+        use custom dehydrate methods created in __init__.
         
         Args:
             obj: SurveySubmission instance
@@ -286,67 +445,110 @@ class SurveySubmissionResource(resources.ModelResource):
         Returns:
             Formatted value for the field
         """
-        # Print debug information about the field being processed
-        field_name = field.attribute if hasattr(field, 'attribute') else str(field)
-        print(f"Processing field: {field_name}")
-        
-        if hasattr(field, 'question_id'):
-            try:
-                question_id = field.question_id
-                print(f"Found question_id: {question_id}")
-                
-                # Check if this submission has a response for this question
-                try:
-                    response = obj.responses.get(question_id=question_id)
-                    print(f"Found response for question {question_id}")
-                    
-                    # Get question type and field type info
-                    input_type = response.question.input_type
-                    print(f"Question input_type: {input_type}")
-                    
-                    # Process text answers
-                    if input_type == Question.InputType.TEXT:
-                        print(f"Text answer: '{response.text_answer}'")
-                        
-                        # Handle numeric fields
-                        if hasattr(field, 'field_type') and hasattr(field.field_type, 'field_type_choice') and \
-                           field.field_type.field_type_choice == InputFieldType.FieldTypeChoice.NUMBER:
-                            try:
-                                if response.text_answer and response.text_answer.strip():
-                                    return float(response.text_answer)
-                            except (ValueError, TypeError):
-                                pass
-                        
-                        return response.text_answer or ''
-                    
-                    # Process choice questions
-                    selected_options = response.selected_options.all()
-                    if selected_options:
-                        option_texts = [opt.text for opt in selected_options]
-                        print(f"Selected options: {option_texts}")
-                        
-                        custom_option = [opt for opt in selected_options if opt.has_custom_input]
-                        
-                        if custom_option and response.text_answer:
-                            return f"{', '.join(option_texts)} - {response.text_answer}"
-                        
-                        return ', '.join(option_texts)
-                    
-                    # Fallback for empty options
-                    return response.text_answer or ''
-                except Response.DoesNotExist:
-                    print(f"No response found for question {question_id}")
-                    return ''
-            except Exception as e:
-                print(f"Error processing question field: {str(e)}")
-                return ''
-        
-        # For non-question fields, use the standard ModelResource behavior
-        return super().dehydrate_field(obj, field)
-
-
+        # Получаем значение поля стандартным способом
+        if hasattr(field, 'attribute') and field.attribute:
+            value = field.get_value(obj)
+        else:
+            # Если нет атрибута, пробуем получить значение через dehydrate метод поля
+            method_name = f'dehydrate_{field.column_name.lower()}'
+            if hasattr(self, method_name):
+                value = getattr(self, method_name)(obj)
+            else:
+                value = ''
+        return value
     
-
+    def export(self, queryset=None, *args, **kwargs):
+        """
+        Export data to Dataset.
+        This is a high-performance implementation that uses response caching and optimized
+        Excel formatting.
+        
+        Args:
+            queryset: QuerySet to export
+            *args: Additional arguments
+            **kwargs: Additional keyword arguments
+            
+        Returns:
+            Dataset with exported data
+        """
+        # Start timing the export process
+        import time
+        start_time = time.time()
+        # print(f"Export started at {start_time}")
+        
+        # Setup cache and prepare for export
+        self.before_export(queryset, *args, **kwargs)
+        
+        # Get queryset if not provided
+        if queryset is None:
+            queryset = self.get_queryset()
+        
+        # Apply filters if any
+        if kwargs.get('export_form'):
+            queryset = self.filter_export(queryset, **kwargs)
+            # print(f"Applied filters, final count: {queryset.count()}")
+        
+        # Create a new dataset
+        dataset = tablib.Dataset()
+        
+        # Get export headers
+        headers = self.get_export_headers()
+        dataset.headers = headers
+        
+        # Get export order
+        export_order = self.get_export_order()
+        
+        # Process data in a single loop - much faster
+        for obj in queryset:
+            # This uses our optimized dehydrate_field method and cached responses
+            # for question fields
+            row = self.export_resource_fields(obj, export_order)
+            dataset.append(row)
+        
+        # Apply Excel formatting only if we need XLSX
+        file_format = kwargs.get('file_format', None)
+        if file_format and hasattr(file_format, 'get_extension') and file_format.get_extension() == 'xlsx':
+            try:
+                # Convert data to Excel format
+                import io
+                xlsx_data = io.BytesIO()
+                file_format.export_data(dataset, xlsx_data)
+                xlsx_data.seek(0)
+                
+                # Load the generated file to apply formatting
+                from openpyxl import load_workbook
+                wb = load_workbook(xlsx_data)
+                ws = wb.active
+                
+                # Apply styling only to header row for better performance
+                for idx, cell in enumerate(ws[1], 1):
+                    cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                    cell.font = Font(bold=True)
+                    column = get_column_letter(idx)
+                    # Set width based on header text length
+                    ws.column_dimensions[column].width = min(50, max(15, len(str(cell.value)) + 5))
+                
+                # Save the formatted workbook
+                output = io.BytesIO()
+                wb.save(output)
+                output.seek(0)
+                
+                # Replace the dataset with the formatted one
+                formatted_dataset = tablib.Dataset()
+                formatted_dataset.xlsx = output.getvalue()
+                dataset = formatted_dataset
+            except Exception as e:
+                print(f"Error during Excel formatting: {str(e)}")
+                # Continue with unformatted data if formatting fails
+        
+        # Report timing
+        end_time = time.time()
+        # print(f"Export completed in {end_time - start_time:.2f} seconds")
+        
+        # After-export cleanup
+        self.after_export(queryset, dataset, *args, **kwargs)
+        
+        return dataset
     
     class Meta:
         model = SurveySubmission
