@@ -108,6 +108,12 @@ class AnswerOption(MPTTModel, BaseModel):
         default=False,
         help_text=_('Allow custom text input for this option')
     )
+    export_field_name = CharField(
+        blank=True,
+        help_text="Short name to use in exports instead of full text",
+        max_length=100,
+        null=True,
+        verbose_name="Export Field Name")
 
     class Meta:
         ordering = ['order']

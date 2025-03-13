@@ -386,7 +386,8 @@ class SurveySubmissionResource(resources.ModelResource):
         # Обрабатываем вопросы с выбором
         selected_options = list(response.selected_options.all())
         if selected_options:
-            option_texts = [opt.text for opt in selected_options]
+            # Use `export_field_name` if it is not blank or not null, else use text
+            option_texts = [opt.export_field_name if opt.export_field_name else opt.text for opt in selected_options]
             
             # Проверяем пользовательский ввод
             custom_option = [opt for opt in selected_options if opt.has_custom_input]
