@@ -66,47 +66,53 @@ class SurveySubmissionResource(resources.ModelResource):
         Returns:
             Filtered queryset
         """
-        # Print debug information about the received parameters
-        # print(f"SurveySubmissionResource.filter_export received kwargs: {kwargs}")
-        
-        # We can get the filter values from both sources:
-        # 1. Directly from kwargs if admin.py added them there
-        # 2. From the export_form.cleaned_data if present
-        
-        # Initialize form_data as an empty dict
+        # Инициализируем form_data как пустой словарь
         form_data = {}
         
-        # Check if we have apply_filters directly in kwargs
+        # Проверяем есть ли apply_filters напрямую в kwargs
         apply_filters = kwargs.get('apply_filters')
         if apply_filters is not None:
             form_data['apply_filters'] = apply_filters
         else:
-            # Check if we have an export form
+            # Проверяем есть ли у нас форма экспорта
             export_form = kwargs.get('export_form')
             if export_form and hasattr(export_form, 'cleaned_data'):
                 form_data = export_form.cleaned_data
-                # print(f"Form cleaned data from export_form: {form_data}")
             else:
-                # print("No valid export form found and no direct filter parameters")
                 return queryset
         
-        # Check if filters should be applied
+        # Проверяем должны ли применяться фильтры
         if not form_data.get('apply_filters', False):
-            # print("No filters requested")
             return queryset
         
-        # Add any direct filter parameters from kwargs that aren't in form_data
+        # Добавляем любые прямые параметры фильтра из kwargs, которых нет в form_data
         for key, value in kwargs.items():
             if key.startswith('filter_q_') and key not in form_data:
                 form_data[key] = value
+        
+        # Применяем фильтры по диапазону дат, если они предоставлены
+        created_at_from = form_data.get('created_at_from')
+        created_at_to = form_data.get('created_at_to')
+        
+        if created_at_from:
+            # Для параметров типа datetime используем только дату
+            if hasattr(created_at_from, 'date'):
+                created_at_from = created_at_from.date()
+            queryset = queryset.filter(created_at__date__gte=created_at_from)
             
-        # Process filter parameters for questions
+        if created_at_to:
+            # Для параметров типа datetime используем только дату
+            if hasattr(created_at_to, 'date'):
+                created_at_to = created_at_to.date()
+            queryset = queryset.filter(created_at__date__lte=created_at_to)
+        
+        # Обрабатываем параметры фильтра для вопросов
         from app.models import Question, InputFieldType
         
-        # Get all questions to check for filters
+        # Получаем все вопросы для проверки фильтров
         questions = Question.objects.all()
         
-        # Track if any filters were applied
+        # Отслеживаем были ли применены какие-либо фильтры
         any_filter_applied = False
         
         # Apply filters for each question based on form data

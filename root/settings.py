@@ -62,11 +62,12 @@ INSTALLED_APPS = [
     'mptt',
     'rest_framework',
     'safedelete',
+    'rangefilter',
 
     # Local apps
     'app.apps.AppConfig',
     'admin_reorder',
-    'shared'
+    'shared',
 ]
 
 # Admin reordering configuration

@@ -1,9 +1,15 @@
 from adminsortable2.admin import SortableAdminBase
-from django.contrib.admin import register, ModelAdmin
+from django.contrib.admin import register, ModelAdmin, DateFieldListFilter
 from django.utils.translation import gettext_lazy as _
 from import_export.admin import ImportExportModelAdmin
 from modeltranslation.admin import TranslationAdmin
 from mptt.admin import DraggableMPTTAdmin
+try:
+    # Импортируем только из модуля django-jazzmin-admin-rangefilter
+    from rangefilter.filters import DateRangeFilter  
+except ImportError:
+    # Резервный вариант - используем стандартный фильтр
+    from django.contrib.admin import DateFieldListFilter as DateRangeFilter
 
 from app.models import (
     About, VisaType, ResultCategory, Result, ContactInfo, UniversityLogo, Question, AnswerOption, SurveySubmission,
@@ -80,27 +86,31 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
     """Admin interface for SurveySubmission model."""
     resource_class = SurveySubmissionResource
     list_display = 'id', 'get_full_name', 'get_phone_number', 'status', 'created_at', 'get_responses_count'
-    list_filter = 'status', 'created_at'
+    list_filter = ('status', ('created_at', DateRangeFilter))
     search_fields = 'id', 'responses__text_answer'
     readonly_fields = 'created_at',
     date_hierarchy = 'created_at'
-    export_form_class = SurveyExportForm
     inlines = [ResponseInline]
+    export_form_class = SurveyExportForm
 
     def get_list_filter(self, request):
-        # 1) Базовые (статичные) фильтры
-        base_filters = ['status', 'created_at']
+        """
+        Return a sequence containing the fields to be displayed as filters in
+        the right sidebar of the changelist page.
+        """
+        # Get base filters from the list_filter attribute
+        base_filters = list(self.list_filter)
 
-        # 2) Собираем все вопросы
+        # Add dynamic filters for each question
         questions = Question.objects.all()
-
-        # 3) Для каждого вопроса создаём класс-фильтр и добавляем в список
         dynamic_filters = []
+        
         for q in questions:
             filter_class = create_question_filter(q)
-            dynamic_filters.append(filter_class)
+            if filter_class:
+                dynamic_filters.append(filter_class)
 
-        # 4) Возвращаем объединённый список
+        # Return combined filters
         return base_filters + dynamic_filters
 
     def get_export_queryset(self, request):
