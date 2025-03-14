@@ -41,9 +41,12 @@ class QuestionSelectWidget(forms.Select):
                     # Добавляем data-атрибуты
                     option['attrs']['data-input-type'] = question.input_type
                     
-                    # Проверяем, есть ли у вопроса опции с пользовательским вводом
-                    has_custom = question.options.filter(has_custom_input=True).exists()
-                    option['attrs']['data-has-custom'] = 'true' if has_custom else 'false'
+                    # Проверяем наличие опций с пользовательским вводом
+                    if question.input_type in ['single_choice', 'multiple_choice']:
+                        # Проверяем, есть ли у вопроса опции с пользовательским вводом
+                        # Это нужно для корректной работы JavaScript
+                        has_custom = question.options.filter(has_custom_input=True).exists()
+                        option['attrs']['data-has-custom'] = 'true' if has_custom else 'false'
             except Exception as e:
                 # Логируем ошибку, но не ломаем работу приложения
                 print(f"Error in QuestionSelectWidget.create_option: {e}")
