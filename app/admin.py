@@ -12,7 +12,7 @@ from app.models import (
 from app.resource import QuestionResource, InputFieldTypeResource, SurveySubmissionResource, AnswerOptionResource
 from shared.django.admin import (
     AboutHighlightInline, VisaDocumentInline,
-    AnswerOptionInline, CustomSortableAdminMixin
+    AnswerOptionInline, CustomSortableAdminMixin, ResponseInline
 )
 from shared.django.admin.forms import SurveyExportForm
 
@@ -84,6 +84,7 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
     readonly_fields = 'created_at',
     date_hierarchy = 'created_at'
     export_form_class = SurveyExportForm
+    inlines = [ResponseInline]
 
     def get_export_queryset(self, request):
         """
@@ -99,7 +100,7 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
         # as they will be applied in resource.filter_export
         if hasattr(self, 'export_form') and self.export_form.is_valid():
             print(f"Export form data: {self.export_form.cleaned_data}")
-        
+
         return super().get_export_queryset(request)
 
     def get_export_data(self, file_format, queryset, *args, **kwargs):
@@ -117,18 +118,18 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
         """
         # Store the export form for later use
         self.export_form = kwargs.get('export_form')
-        
+
         # Extract form data to pass to the resource's filter_export method
         if self.export_form and self.export_form.is_valid():
             form_data = self.export_form.cleaned_data
             print(f"Export form data: {form_data}")
-            
+
             # Add form data to kwargs that will be passed to resource.filter_export
             # Skip file_format since it's already a positional argument
             for key, value in form_data.items():
                 if key != 'file_format':  # Skip file_format to avoid duplicate argument
                     kwargs[key] = value
-            
+
         print(file_format, kwargs)
         return super().get_export_data(file_format, queryset, *args, **kwargs)
 

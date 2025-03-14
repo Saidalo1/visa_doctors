@@ -3,13 +3,11 @@
 from adminsortable2.admin import SortableInlineAdminMixin
 from django.contrib.admin import StackedInline
 from django.forms import BaseInlineFormSet, ModelForm
-from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from modeltranslation.admin import TranslationTabularInline, TranslationStackedInline
 from rest_framework.exceptions import ValidationError
 
-from app.models.pages import AboutHighlight, VisaDocument
-from app.models.survey import Response, Question, AnswerOption
+from app.models import AboutHighlight, VisaDocument, Response, AnswerOption
 
 
 class AboutHighlightInline(SortableInlineAdminMixin, TranslationTabularInline):
@@ -28,21 +26,11 @@ class ResponseInline(StackedInline):
     """Inline admin for Response model."""
     model = Response
     extra = 0
-    readonly_fields = ['question', 'get_answer_display']
-    fields = ['question', 'get_answer_display']
-    can_delete = False
-    max_num = 0
+    fields = 'question', 'text_answer', 'selected_options'
+    autocomplete_fields = ['selected_options']
 
-    def get_answer_display(self, obj):
-        """Format answer display based on question type."""
-        if obj.question.input_type in [Question.InputType.SINGLE_CHOICE, Question.InputType.MULTIPLE_CHOICE]:
-            options = obj.selected_options.all()
-            return format_html(
-                '<br>'.join(f'• {opt.text}' for opt in options)
-            ) if options else '-'
-        return obj.text_answer or '-'
-
-    get_answer_display.short_description = 'Answer'
+    class Media:
+        js = 'js/readonly_questions.js',
 
 
 class AnswerOptionInlineFormSet(BaseInlineFormSet):
@@ -83,5 +71,6 @@ class AnswerOptionInline(TranslationStackedInline):
 
     def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
         if db_field.name == 'parent' and self:
-            kwargs['queryset'] = AnswerOption.objects.filter(parent__isnull=True, question_id=request.path.replace('/change/', '')[-1])
+            kwargs['queryset'] = AnswerOption.objects.filter(parent__isnull=True,
+                                                             question_id=request.path.replace('/change/', '')[-1])
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
