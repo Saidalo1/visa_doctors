@@ -8,6 +8,7 @@ from modeltranslation.admin import TranslationTabularInline, TranslationStackedI
 from rest_framework.exceptions import ValidationError
 
 from app.models import AboutHighlight, VisaDocument, Response, AnswerOption
+from shared.django.admin.widgets import QuestionSelectWidget
 
 
 class AboutHighlightInline(SortableInlineAdminMixin, TranslationTabularInline):
@@ -22,9 +23,23 @@ class VisaDocumentInline(SortableInlineAdminMixin, TranslationTabularInline):
     extra = 1
 
 
+class ResponseForm(ModelForm):
+    """
+    Custom form for Response model with a custom question widget
+    that adds data attributes for JavaScript functionality.
+    """
+    class Meta:
+        model = Response
+        fields = 'question', 'text_answer', 'selected_options'
+        widgets = {
+            'question': QuestionSelectWidget,
+        }
+
+
 class ResponseInline(StackedInline):
     """Inline admin for Response model."""
     model = Response
+    form = ResponseForm
     extra = 0
     fields = 'question', 'text_answer', 'selected_options'
     autocomplete_fields = ['selected_options']
