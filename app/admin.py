@@ -161,11 +161,7 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
         # Ищем ответ на вопрос с телефоном (по field_type или field_title)
         try:
             phone_response = obj.responses.filter(
-                question__field_title__icontains='phone'
-            ).first() or obj.responses.filter(
-                question__title__icontains='phone'
-            ).first() or obj.responses.filter(
-                question__field_type__title__icontains='phone'
+                question__field_type__field_key__iexact="phone number"
             ).first()
 
             if phone_response:
@@ -184,9 +180,7 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
         # Ищем ответ на вопрос с именем (по field_title или title)
         try:
             name_response = obj.responses.filter(
-                question__field_title__icontains='name'
-            ).first() or obj.responses.filter(
-                question__title__icontains='name'
+                question__field_type__field_key__iexact="name"
             ).first()
 
             if name_response:
