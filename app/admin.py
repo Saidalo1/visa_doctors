@@ -14,6 +14,7 @@ from shared.django.admin import (
     AboutHighlightInline, VisaDocumentInline,
     AnswerOptionInline, CustomSortableAdminMixin, ResponseInline
 )
+from shared.django.admin.filters import create_question_filter
 from shared.django.admin.forms import SurveyExportForm
 
 
@@ -85,6 +86,22 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
     date_hierarchy = 'created_at'
     export_form_class = SurveyExportForm
     inlines = [ResponseInline]
+
+    def get_list_filter(self, request):
+        # 1) Базовые (статичные) фильтры
+        base_filters = ['status', 'created_at']
+
+        # 2) Собираем все вопросы
+        questions = Question.objects.all()
+
+        # 3) Для каждого вопроса создаём класс-фильтр и добавляем в список
+        dynamic_filters = []
+        for q in questions:
+            filter_class = create_question_filter(q)
+            dynamic_filters.append(filter_class)
+
+        # 4) Возвращаем объединённый список
+        return base_filters + dynamic_filters
 
     def get_export_queryset(self, request):
         """

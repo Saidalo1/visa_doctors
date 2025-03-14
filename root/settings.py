@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     # Local apps
     'app.apps.AppConfig',
     'admin_reorder',
+    'shared'
 ]
 
 # Admin reordering configuration
