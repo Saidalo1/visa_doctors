@@ -46,37 +46,38 @@ def create_question_filter(question):
                     lookups_list.append((f"option:{option.id}", option.text))
             
             return lookups_list
-        
+
         def queryset(self, request, queryset):
-            """
-            Фильтруем SurveySubmission по выбранному значению (self.value()).
-            Поддерживает фильтрацию как по текстовым ответам, так и по выбранным вариантам.
-            """
-            value = self.value()
-            if not value:
+            # Вместо self.value() берём список значений:
+            values = request.GET.getlist(self.parameter_name)
+            if not values:
                 return queryset
-                
-            # Разбираем значение, чтобы определить тип фильтра
-            if value.startswith('text:'):
-                # Фильтрация по текстовому ответу
-                text_value = value[5:]  # Убираем префикс 'text:'
-                return queryset.filter(
-                    responses__question=question,
-                    responses__text_answer=text_value
-                ).distinct()
-                
-            elif value.startswith('option:'):
-                # Фильтрация по выбранному варианту
-                option_id = value[7:]  # Убираем префикс 'option:'
-                try:
-                    option_id = int(option_id)
-                    return queryset.filter(
+
+            # Допустим, хотим сделать «ИЛИ»-логику (OR),
+            # чтобы попадали записи, удовлетворя хотя бы одному из выбранных значений.
+            from django.db.models import Q
+            q_filter = Q()
+
+            for val in values:
+                if val.startswith('text:'):
+                    # Текстовый ответ
+                    text_value = val[5:]
+                    q_filter |= Q(
                         responses__question=question,
-                        responses__selected_options__id=option_id
-                    ).distinct()
-                except (ValueError, TypeError):
-                    return queryset
-                    
-            return queryset
-    
+                        responses__text_answer=text_value
+                    )
+                elif val.startswith('option:'):
+                    # Выбранный вариант
+                    try:
+                        option_id = int(val[7:])
+                        q_filter |= Q(
+                            responses__question=question,
+                            responses__selected_options__id=option_id
+                        )
+                    except ValueError:
+                        pass
+
+            print(queryset, queryset.query)
+            return queryset.filter(q_filter).distinct()
+
     return DynamicQuestionFilter

@@ -34,6 +34,7 @@ ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost'])
 
 # Trusted CSRF originsZ
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=['localhost'])
+print(CSRF_TRUSTED_ORIGINS)
 
 # Application definition
 INSTALLED_APPS = [

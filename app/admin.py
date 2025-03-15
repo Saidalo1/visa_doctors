@@ -1,12 +1,13 @@
 from adminsortable2.admin import SortableAdminBase
-from django.contrib.admin import register, ModelAdmin, DateFieldListFilter
+from django.contrib.admin import register, ModelAdmin
 from django.utils.translation import gettext_lazy as _
 from import_export.admin import ImportExportModelAdmin
 from modeltranslation.admin import TranslationAdmin
 from mptt.admin import DraggableMPTTAdmin
+
 try:
     # Импортируем только из модуля django-jazzmin-admin-rangefilter
-    from rangefilter.filters import DateRangeFilter  
+    from rangefilter.filters import DateRangeFilter
 except ImportError:
     # Резервный вариант - используем стандартный фильтр
     from django.contrib.admin import DateFieldListFilter as DateRangeFilter
@@ -104,7 +105,7 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
         # Add dynamic filters for each question
         questions = Question.objects.all()
         dynamic_filters = []
-        
+
         for q in questions:
             filter_class = create_question_filter(q)
             if filter_class:
@@ -236,6 +237,12 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
             except Question.DoesNotExist:
                 pass
         return response
+
+    class Media:
+        js = 'admin/js/multi_select.js',
+        css = {
+            'all': ['admin/css/multi_select.css']
+        }
 
 
 @register(AnswerOption)
