@@ -134,6 +134,7 @@ class UniversityLogo(BaseModel):
     """University logo model."""
     name = CharField(_('University Name'), max_length=255)
     logo = ImageField(_('Logo'), upload_to='universities/logos/')
+    url = URLField(_('Website URL'), max_length=255, blank=True)
     order = PositiveIntegerField(_('Order'), default=0, db_index=True)
     
     class Meta:

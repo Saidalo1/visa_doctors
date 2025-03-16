@@ -21,7 +21,7 @@ from shared.django.admin import (
     AboutHighlightInline, VisaDocumentInline,
     AnswerOptionInline, CustomSortableAdminMixin, ResponseInline
 )
-from shared.django.admin.filters import create_question_filter
+from shared.django.admin.filters import create_question_filters
 from shared.django.admin.forms import SurveyExportForm
 
 
@@ -66,7 +66,7 @@ class ResultAdmin(ModelAdmin):
 @register(UniversityLogo)
 class UniversityLogoAdmin(CustomSortableAdminMixin, TranslationAdmin):
     """Admin interface for UniversityLogo model."""
-    list_display = ['name', 'logo', 'order', 'created_at']
+    list_display = ['name', 'logo', 'url', 'order', 'created_at']
     list_editable = ['order']
     list_filter = ['created_at']
     search_fields = ['name']
@@ -92,7 +92,7 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
     readonly_fields = 'created_at',
     date_hierarchy = 'created_at'
     inlines = [ResponseInline]
-    export_form_class = SurveyExportForm
+    # export_form_class = SurveyExportForm
 
     def get_list_filter(self, request):
         """
@@ -107,9 +107,10 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
         dynamic_filters = []
 
         for q in questions:
-            filter_class = create_question_filter(q)
-            if filter_class:
-                dynamic_filters.append(filter_class)
+            # Get all filters for this question (one per option family)
+            filter_classes = create_question_filters(q)
+            # Add each filter to the list
+            dynamic_filters.extend(filter_classes)
 
         # Return combined filters
         return base_filters + dynamic_filters

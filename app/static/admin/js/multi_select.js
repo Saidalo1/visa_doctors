@@ -22,7 +22,8 @@ document.addEventListener("DOMContentLoaded", function () {
             selectElem.setAttribute('data-placeholder', firstOption.textContent.trim());
         }
 
-        const selectedValues = getUrlParams(selectElem.name);
+        const query_name = dataName === "status" ? "status__exact" : dataName;
+        const selectedValues = getUrlParams(query_name);
 
         selectedValues.forEach(value => {
             let option = selectElem.querySelector(`option[value="${value}"]`);

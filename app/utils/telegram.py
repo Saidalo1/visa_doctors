@@ -88,32 +88,41 @@ def format_submission_notification(submission_id: int) -> str:
             f"",
         ]
         
-        # Try to get some response data
-        responses = Response.objects.filter(submission_id=submission_id)
+        # Get all response data and organize by question type
+        responses = Response.objects.filter(submission_id=submission_id).select_related('question', 'question__field_type')
+        
         if responses.exists():
             message.append(f"*Ma'lumot:*")
             
-            # Limit to first 5 responses to avoid too long messages
-            for response in responses[:5]:
-                question_title = response.question.title
-                
-                # Format answer based on question type
-                if response.text_answer:
-                    answer = response.text_answer
-                elif response.selected_options.exists():
-                    options = [opt.text for opt in response.selected_options.all()]
-                    answer = ", ".join(options)
-                else:
-                    answer = "Ko'rsatilmagan"
-                
-                # Add to message with truncation to avoid too long messages
-                if len(answer) > 50:
-                    answer = answer[:47] + "..."
-                
-                message.append(f"• {question_title}: {answer}")
+            # Group responses by field type
+            responses_by_type = {}
+            for response in responses:
+                field_type = response.question.field_type.title
+                if field_type not in responses_by_type:
+                    responses_by_type[field_type] = []
+                responses_by_type[field_type].append(response)
             
-            if responses.count() > 5:
-                message.append(f"_...va yana {responses.count() - 5} ta javob_")
+            # Process each field type group
+            for field_type, type_responses in responses_by_type.items():
+                message.append(f"\n*{field_type}:*")
+                
+                for response in type_responses:
+                    question_title = response.question.title
+                    
+                    # Format answer based on question type
+                    if response.text_answer:
+                        answer = response.text_answer
+                    elif response.selected_options.exists():
+                        options = [opt.text for opt in response.selected_options.all()]
+                        answer = ", ".join(options)
+                    else:
+                        answer = "Ko'rsatilmagan"
+                    
+                    # Add to message with truncation to avoid too long messages
+                    if len(answer) > 100:
+                        answer = answer[:97] + "..."
+                    
+                    message.append(f"• {question_title}: {answer}")
         
         message.append(f"")
         message.append(f"_Batafsil ma'lumot uchun admin panelni tekshiring._")

@@ -7,6 +7,7 @@ from django.utils.translation import gettext_lazy as _
 import re
 
 from app.models import Question, AnswerOption, SurveySubmission, Response, InputFieldType
+from app.utils.telegram import notify_new_submission
 
 
 class InputFieldTypeSerializer(ModelSerializer):
@@ -90,9 +91,9 @@ class SurveySubmissionSerializer(ModelSerializer):
     status = CharField(read_only=True)
     
     class Meta:
-        """Meta class."""
+        """Metaclass."""
         model = SurveySubmission
-        fields = ['id', 'status', 'responses', 'created_at', 'updated_at']
+        fields = 'id', 'status', 'responses', 'created_at', 'updated_at'
     
     def validate_responses(self, responses):
         """Validate that all required questions have responses."""
@@ -132,9 +133,11 @@ class SurveySubmissionSerializer(ModelSerializer):
             # Добавляем выбранные варианты ответа, если есть
             if selected_options:
                 response.selected_options.set(selected_options)
-        
+
+        notify_new_submission(submission_id=submission.id)
+
         # После сохранения всех ответов, меняем статус на COMPLETED
-        submission.status = SurveySubmission.Status.COMPLETED
-        submission.save(update_fields=['status'])
+        # submission.status = SurveySubmission.Status.COMPLETED
+        # submission.save(update_fields=['status'])
         
         return submission

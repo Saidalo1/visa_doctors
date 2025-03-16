@@ -124,7 +124,7 @@ class UniversityLogoSerializer(ModelSerializer):
 
     class Meta:
         model = UniversityLogo
-        fields = 'name', 'logo'
+        fields = 'name', 'logo', 'url'
 
 
 class ContactInfoSerializer(ModelSerializer):
