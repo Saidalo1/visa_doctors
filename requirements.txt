@@ -13,7 +13,10 @@ psycopg2-binary==2.9.9
 django-cors-headers==4.3.1
 
 # Admin customization
+django-admin-autocomplete-filter==0.7.1
 django-admin-rangefilter==0.13.2
+django-filter==25.1
+django-more-admin-filters==1.11
 git+https://github.com/nicolochiellini/django-modeladmin-reorder.git@master
 djangorestframework==3.15.2
 drf-spectacular==0.27.1

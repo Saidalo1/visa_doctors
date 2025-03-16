@@ -1,57 +1,57 @@
-services:
-  web:
-    container_name: visa_doctors_web
-    restart: always
-    ports:
-      - "${PORT}:${PORT}"
-    build:
-      context: .
-      dockerfile: ./compose/django/Dockerfile
-    env_file:
-      - ./.env
-    command: /start
-    volumes:
-      - .:/app
-      - ./static:/app/static
-      - ./media:/app/media
-    develop:
-      watch:
-        - action: sync+restart
-          path: .
-          target: /app
-          ignore:
-            - 'static/'
-            - 'media/'
-            - '*.pyc'
-            - '__pycache__/'
-        - action: rebuild
-          path: requirements.txt
-    depends_on:
-      - redis
+  services:
+    web:
+      container_name: visa_doctors_web
+      restart: always
+      ports:
+        - "${PORT}:${PORT}"
+      build:
+        context: .
+        dockerfile: ./compose/django/Dockerfile
+      env_file:
+        - ./.env
+      command: /start
+      volumes:
+        - .:/app
+        - ./static:/app/static
+        - ./media:/app/media
+      develop:
+        watch:
+          - action: sync+restart
+            path: .
+            target: /app
+            ignore:
+              - 'static/'
+              - 'media/'
+              - '*.pyc'
+              - '__pycache__/'
+          - action: rebuild
+            path: requirements.txt
+      depends_on:
+        - redis
 
-  redis:
-    image: redis:alpine
-    restart: always
-    ports:
-      - '6379:6379'
-    command: redis-server --save 20 1 --loglevel warning
-    volumes:
-      - redis_data:/data
+    redis:
+      image: redis:alpine
+      restart: always
+      ports:
+        - '6379:6379'
+      command: redis-server --save 20 1 --loglevel warning
+      volumes:
+        - redis_data:/data
 
-  # postgres:
-  #   image: postgres:17.4-alpine
-  #   restart: always
-  #   env_file:
-  #     - ./.env
-  #   environment:
-  #     POSTGRES_DB: '${SQL_NAME}'
-  #     POSTGRES_USER: '${SQL_USER}'
-  #     POSTGRES_PASSWORD: '${POSTGRES_PASSWORD}'
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data/
-  #   ports:
-  #     - "5432:5432"
+    # postgres:
+    #   image: postgres:17.4-alpine
+    #   restart: always
+    #   env_file:
+    #     - ./.env
+    #   environment:
+    #     POSTGRES_DB: '${SQL_NAME}'
+    #     POSTGRES_USER: '${SQL_USER}'
+    #     POSTGRES_PASSWORD: '${POSTGRES_PASSWORD}'
+    #   volumes:
+    #     - postgres_data:/var/lib/postgresql/data/
+    #   ports:
+    #     - "5432:5432"
 
-volumes:
-  # postgres_data:
-  redis_data:
+  volumes:
+    # postgres_data:
+    redis_data:
