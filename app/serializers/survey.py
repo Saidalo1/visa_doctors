@@ -81,7 +81,19 @@ class ResponseSerializer(ModelSerializer):
                             option.text, question.title
                         )
                     })
-        
+
+        # Проверка regex-валидации, если у вопроса есть field_type с регулярным выражением
+        if (
+                question.input_type == Question.InputType.TEXT
+                and question.field_type
+                and question.field_type.regex_pattern.strip()  # Проверяем, что regex не пустой
+        ):
+            pattern = question.field_type.regex_pattern
+            if not re.fullmatch(pattern, text_answer):
+                error_message = question.field_type.error_message or _(
+                    'Text answer does not match the required format.')
+                raise ValidationError({'text_answer': error_message})
+
         return attrs
 
 
