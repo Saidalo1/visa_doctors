@@ -547,6 +547,7 @@ JAZZMIN_SETTINGS = {
         {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},
         {"model": "auth.User"},
         {"name": "Support", "url": "https://docs.example.com", "new_window": True},
+        {"name": "Logout", "url": "/logout/", "icon": "fas fa-sign-out-alt"},
     ],
 
     # Side Menu Configuration
