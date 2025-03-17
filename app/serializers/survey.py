@@ -48,7 +48,7 @@ class ResponseSerializer(ModelSerializer):
     )
     
     class Meta:
-        """Meta class."""
+        """Metaclass."""
         model = Response
         fields = ['question', 'selected_options', 'text_answer']
     
@@ -59,7 +59,7 @@ class ResponseSerializer(ModelSerializer):
         text_answer = attrs.get('text_answer', '')
         
         # Проверяем, есть ли ответ в зависимости от типа вопроса
-        if question.input_type == Question.InputType.TEXT and not text_answer:
+        if question.input_type == Question.InputType.TEXT and question.is_required and not text_answer:
             raise ValidationError({'text_answer': _('Text answer is required for this question.')})
         
         if question.input_type != Question.InputType.TEXT and not selected_options:
