@@ -102,23 +102,25 @@ def format_submission_notification(submission_id: int) -> str:
             # Список выбранных опций (если это чекбоксы, селекты и т.д.)
             selected_options = list(response.selected_options.all())
 
-            # Если есть выбранные варианты ответа
             if selected_options:
-                # Если вариантов несколько, выведем каждый на новой строке
-                if len(selected_options) > 1:
+                # Сортируем: сначала с родителем, потом одиночные
+                sorted_options = sorted(selected_options, key=lambda opt: opt.parent is None)
+
+                if len(sorted_options) > 1:
                     message_lines.append(f"  • *{field_key}:*")
-                    for option in selected_options:
+                    for option in sorted_options:
                         if option.parent:
                             message_lines.append(f"    ◦ {option.parent.text} → {option.text}")
                         else:
                             message_lines.append(f"    ◦ {option.text}")
                 else:
-                    # Один вариант
-                    option = selected_options[0]
+                    option = sorted_options[0]
                     if option.parent:
                         message_lines.append(f"  • *{field_key}:* {option.parent.text} → {option.text}")
                     else:
                         message_lines.append(f"  • *{field_key}:* {option.text}")
+
+
 
             # Если это обычный текстовый ответ
             elif response.text_answer:
