@@ -1,6 +1,7 @@
 """Telegram notification functionality."""
 import asyncio
 import logging
+import threading
 
 from django.conf import settings
 from django.utils import timezone
@@ -146,6 +147,23 @@ def format_submission_notification(submission_id: int) -> str:
             "Yangi ariza kelib tushdi. "
             "Batafsil ma'lumot uchun admin panelni tekshiring."
         )
+
+
+def notify_new_submission_async(submission_id: int) -> None:
+    """
+    Асинхронно отправляет уведомление о новой заявке в Telegram.
+    Запускает процесс в отдельном потоке, не блокируя основной поток обработки запроса.
+    
+    Args:
+        submission_id: ID заявки
+    """
+    thread = threading.Thread(
+        target=notify_new_submission,
+        args=(submission_id,),
+        daemon=True  # Поток завершится, когда основной процесс завершится
+    )
+    thread.start()
+    logger.info(f"Started background notification thread for submission #{submission_id}")
 
 
 def notify_new_submission(submission_id: int) -> None:

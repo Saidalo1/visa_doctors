@@ -7,7 +7,7 @@ from django.utils.translation import gettext_lazy as _
 import re
 
 from app.models import Question, AnswerOption, SurveySubmission, Response, InputFieldType
-from app.utils.telegram import notify_new_submission
+from app.utils.telegram import notify_new_submission_async
 
 
 class InputFieldTypeSerializer(ModelSerializer):
@@ -137,7 +137,7 @@ class SurveySubmissionSerializer(ModelSerializer):
         responses_data = validated_data.pop('responses')
         submission = SurveySubmission.objects.create(**validated_data)
         
-        # Создаем ответы на вопросы
+        # Create responses
         for response_data in responses_data:
             selected_options = response_data.pop('selected_options', [])
             response = Response.objects.create(submission=submission, **response_data)
@@ -146,7 +146,7 @@ class SurveySubmissionSerializer(ModelSerializer):
             if selected_options:
                 response.selected_options.set(selected_options)
 
-        notify_new_submission(submission_id=submission.id)
+        notify_new_submission_async(submission_id=submission.id)
 
         # После сохранения всех ответов, меняем статус на COMPLETED
         # submission.status = SurveySubmission.Status.COMPLETED
