@@ -42,6 +42,8 @@ class Migration(migrations.Migration):
                 ("image", models.ImageField(upload_to="about/", verbose_name="Image")),
                 ("experience_years", models.JSONField(verbose_name="Experience Years")),
                 ("slug", models.SlugField(unique=True, verbose_name="Slug")),
+                ("created_at", models.DateTimeField(auto_now_add=True, verbose_name="Created at")),
+                ("updated_at", models.DateTimeField(auto_now=True, verbose_name="Updated at")),
             ],
             options={
                 "verbose_name": "About",
@@ -76,6 +78,8 @@ class Migration(migrations.Migration):
                 ("instagram", models.URLField(blank=True, verbose_name="Instagram")),
                 ("facebook", models.URLField(blank=True, verbose_name="Facebook")),
                 ("youtube", models.URLField(blank=True, verbose_name="YouTube")),
+                ("created_at", models.DateTimeField(auto_now_add=True, verbose_name="Created at")),
+                ("updated_at", models.DateTimeField(auto_now=True, verbose_name="Updated at")),
             ],
             options={
                 "verbose_name": "Contact Information",
@@ -118,6 +122,8 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 ("order", models.PositiveIntegerField(default=0, verbose_name="Order")),
+                ("created_at", models.DateTimeField(auto_now_add=True, verbose_name="Created at")),
+                ("updated_at", models.DateTimeField(auto_now=True, verbose_name="Updated at")),
             ],
             options={
                 "verbose_name": "Question",
@@ -147,6 +153,8 @@ class Migration(migrations.Migration):
                     models.BooleanField(default=False, editable=False),
                 ),
                 ("title", models.CharField(max_length=255, verbose_name="Title")),
+                ("created_at", models.DateTimeField(auto_now_add=True, verbose_name="Created at")),
+                ("updated_at", models.DateTimeField(auto_now=True, verbose_name="Updated at")),
             ],
             options={
                 "verbose_name": "Result Category",
@@ -183,6 +191,8 @@ class Migration(migrations.Migration):
                         verbose_name="Status",
                     ),
                 ),
+                ("created_at", models.DateTimeField(auto_now_add=True, verbose_name="Created at")),
+                ("updated_at", models.DateTimeField(auto_now=True, verbose_name="Updated at")),
             ],
             options={
                 "verbose_name": "Survey Submission",
@@ -216,6 +226,8 @@ class Migration(migrations.Migration):
                     "icon",
                     models.ImageField(upload_to="visas/icons/", verbose_name="Icon"),
                 ),
+                ("created_at", models.DateTimeField(auto_now_add=True, verbose_name="Created at")),
+                ("updated_at", models.DateTimeField(auto_now=True, verbose_name="Updated at")),
             ],
             options={
                 "verbose_name": "Visa Type",
@@ -246,6 +258,8 @@ class Migration(migrations.Migration):
                 ("title", models.CharField(max_length=255, verbose_name="Title")),
                 ("description", models.TextField(verbose_name="Description")),
                 ("order", models.PositiveIntegerField(default=0, verbose_name="Order")),
+                ("created_at", models.DateTimeField(auto_now_add=True, verbose_name="Created at")),
+                ("updated_at", models.DateTimeField(auto_now=True, verbose_name="Updated at")),
                 (
                     "about",
                     models.ForeignKey(
@@ -302,6 +316,8 @@ class Migration(migrations.Migration):
                         to="app.question",
                     ),
                 ),
+                ("created_at", models.DateTimeField(auto_now_add=True, verbose_name="Created at")),
+                ("updated_at", models.DateTimeField(auto_now=True, verbose_name="Updated at"))
             ],
             options={
                 "verbose_name": "Answer Option",
@@ -344,6 +360,8 @@ class Migration(migrations.Migration):
                         to="app.resultcategory",
                     ),
                 ),
+                ("created_at", models.DateTimeField(auto_now_add=True, verbose_name="Created at")),
+                ("updated_at", models.DateTimeField(auto_now=True, verbose_name="Updated at"))
             ],
             options={
                 "verbose_name": "Result",
@@ -393,6 +411,8 @@ class Migration(migrations.Migration):
                         to="app.surveysubmission",
                     ),
                 ),
+                ("created_at", models.DateTimeField(auto_now_add=True, verbose_name="Created at")),
+                ("updated_at", models.DateTimeField(auto_now=True, verbose_name="Updated at"))
             ],
             options={
                 "verbose_name": "Response",
@@ -430,6 +450,8 @@ class Migration(migrations.Migration):
                         to="app.visatype",
                     ),
                 ),
+                ("created_at", models.DateTimeField(auto_now_add=True, verbose_name="Created at")),
+                ("updated_at", models.DateTimeField(auto_now=True, verbose_name="Updated at"))
             ],
             options={
                 "verbose_name": "Visa Document",

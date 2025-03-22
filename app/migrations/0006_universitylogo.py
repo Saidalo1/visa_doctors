@@ -47,6 +47,8 @@ class Migration(migrations.Migration):
                         db_index=True, default=0, verbose_name="Order"
                     ),
                 ),
+                ("created_at", models.DateTimeField(auto_now_add=True, verbose_name="Created at")),
+                ("updated_at", models.DateTimeField(auto_now=True, verbose_name="Updated at")),
             ],
             options={
                 "verbose_name": "University Logo",

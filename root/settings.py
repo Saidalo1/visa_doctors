@@ -195,7 +195,7 @@ DATABASES = {
         'HOST': env.str('SQL_HOST'),
         'PORT': env.int('SQL_PORT'),
         'OPTIONS': {
-            'sslmode': env.str('SSLMODE'),
+            'sslmode': env.str('SSLMODE', 'prefer'),
             'sslrootcert': env.str('CA_SERTIFICATE_PATH'),
         }
     }
