@@ -15,7 +15,7 @@ class InputFieldTypeSerializer(ModelSerializer):
     
     class Meta:
         model = InputFieldType
-        fields = 'id', 'title', 'regex_pattern', 'error_message'
+        fields = 'id', 'title', 'field_key', 'regex_pattern', 'error_message'
 
 
 class AnswerOptionSerializer(ModelSerializer):
