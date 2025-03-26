@@ -8,6 +8,10 @@ from aiogram.types import FSInputFile
 from asgiref.sync import sync_to_async
 from django.utils import timezone
 from aiogram.exceptions import TelegramBadRequest
+from django.contrib.admin.sites import site
+from django.http import HttpRequest
+from django.db import models
+from django.db.models import OuterRef, Subquery
 
 from app.admin import SurveySubmissionAdmin
 from bot.filters import SurveyFilter
@@ -17,6 +21,7 @@ from bot.keyboards import (
     get_results_keyboard
 )
 from bot.states import FilterStates
+from app.models import Response
 
 logger = logging.getLogger(__name__)
 
@@ -140,19 +145,16 @@ async def process_filter_callback(callback_query: types.CallbackQuery, state: FS
 
 
 @sync_to_async
-def get_submission_name(submission) -> str:
-    """Get submission name from responses using optimized query."""
-    name_response = submission.responses.filter(
+def get_name_responses(submission_ids):
+    """Get name responses for submissions efficiently using a single optimized query."""
+    return list(Response.objects.filter(
+        submission_id__in=submission_ids,
         question__field_type__field_key__iexact='name'
-    ).prefetch_related('selected_options').first()
-    
-    if name_response:
-        if name_response.text_answer:
-            return name_response.text_answer
-        if name_response.selected_options.exists():
-            return name_response.selected_options.first().text
-        return "Нет данных"
-    return "Нет данных"
+    ).values(
+        'submission_id',
+        'text_answer',
+        'selected_options__text'
+    ).distinct())
 
 
 async def show_results(message: types.Message | types.Message, state: FSMContext, edit_message: bool = False):
@@ -162,7 +164,7 @@ async def show_results(message: types.Message | types.Message, state: FSMContext
     filter_manager = SurveyFilter(filter_state)
     page = data.get('current_page', 1)
 
-    # Get filtered submissions
+    # Get filtered submissions with all necessary related data
     submissions = await filter_manager.get_filtered_submissions()
     
     if not submissions:
@@ -196,10 +198,20 @@ async def show_results(message: types.Message | types.Message, state: FSMContext
     end = start + RESULTS_PER_PAGE
     paginated_submissions = submissions[start:end]
 
+    # Get name responses for paginated submissions
+    name_responses = await get_name_responses([sub.id for sub in paginated_submissions])
+
+    # Create lookup dict for names
+    submission_names = {}
+    for resp in name_responses:
+        sub_id = resp['submission_id']
+        if sub_id not in submission_names:  # Take first non-empty value
+            submission_names[sub_id] = resp['text_answer'] or resp['selected_options__text'] or "Нет данных"
+
     # Format results message
     results = []
     for sub in paginated_submissions:
-        name = await get_submission_name(sub)
+        name = submission_names.get(sub.id, "Нет данных")
         # Make naive datetime timezone-aware
         created_at = timezone.make_aware(sub.created_at) if timezone.is_naive(sub.created_at) else sub.created_at
         results.append(
@@ -235,9 +247,17 @@ async def show_results(message: types.Message | types.Message, state: FSMContext
 def export_to_excel(queryset) -> bytes:
     """Export queryset to Excel."""
     from django.contrib.admin.sites import site
+    from django.http import HttpRequest
     from app.models import SurveySubmission
+    
+    # Create a mock request
+    request = HttpRequest()
+    request.POST = {}
+    request.GET = {}
+    request.method = 'POST'
+    
     admin = SurveySubmissionAdmin(SurveySubmission, site)
-    return admin.export_action(None, queryset)
+    return admin.export_action(request, queryset)
 
 
 async def export_results(callback_query: types.CallbackQuery, state: FSMContext):
