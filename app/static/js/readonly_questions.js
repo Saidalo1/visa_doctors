@@ -35,9 +35,6 @@ window.addEventListener("load", function () {
                         
                         // Если есть выбранные опции, проверяем их
                         if ($selectedOptions.val() && $selectedOptions.val().length > 0) {
-                            // Здесь мы могли бы проверить, имеет ли выбранная опция has_custom_input,
-                            // но у нас нет прямого доступа к этой информации через DOM.
-                            // Поэтому просто показываем текстовое поле, если у вопроса есть опции с has_custom_input
                             hasSelectedCustomOption = true;
                         }
                         
@@ -55,15 +52,42 @@ window.addEventListener("load", function () {
                     $textarea.closest(".form-group").hide();
                 }
 
-                // 6) Disable question selection if already set
+                // 6) Handle question field locking
                 if ($select.val() !== "") {
+                    // Create hidden input if not exists
+                    var hiddenName = $select.attr("name");
+                    var $hidden = $select.siblings('input[type="hidden"][name="' + hiddenName + '"]');
+                    
+                    if (!$hidden.length) {
+                        $hidden = $('<input type="hidden">').attr("name", hiddenName);
+                        $select.after($hidden);
+                    }
+                    
+                    // Update hidden value and disable select
+                    $hidden.val($select.val());
                     $select.prop("disabled", true);
+                    $select.css({
+                        "background-color": "#f8f9fa",
+                        "cursor": "not-allowed",
+                        "opacity": "0.7"
+                    });
+                    
                     $(this)
                         .find(".related-widget-wrapper-link.change-related, .related-widget-wrapper-link.view-related")
                         .addClass("disabled")
                         .attr("aria-disabled", "true");
                 } else {
+                    // Remove hidden input if exists
+                    var hiddenName = $select.attr("name");
+                    $select.siblings('input[type="hidden"][name="' + hiddenName + '"]').remove();
+                    
                     $select.prop("disabled", false);
+                    $select.css({
+                        "background-color": "",
+                        "cursor": "",
+                        "opacity": ""
+                    });
+                    
                     $(this)
                         .find(".related-widget-wrapper-link.change-related, .related-widget-wrapper-link.view-related")
                         .removeClass("disabled")
