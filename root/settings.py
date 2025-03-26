@@ -1,3 +1,4 @@
+import os
 from os.path import join
 from pathlib import Path
 
@@ -657,6 +658,7 @@ if not DEBUG:
 TELEGRAM_BOT_TOKEN = env.str('TELEGRAM_BOT_TOKEN', default='')
 TELEGRAM_CHAT_ID = env.str('TELEGRAM_CHAT_ID', default='')
 TELEGRAM_NOTIFICATIONS_ENABLED = env.bool('TELEGRAM_NOTIFICATIONS_ENABLED', default=False)
+REDIS_URL = f"redis://:{env.str('REDIS_PASSWORD')}@{env.str('REDIS_HOST')}:{env.int('REDIS_PORT')}/{env.int('TELEGRAM_REDIS_DB')}"
 
 # Base URL for admin links
 BASE_URL = env.str('BASE_URL', default='http://localhost:8000')
