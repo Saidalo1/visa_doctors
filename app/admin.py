@@ -1,9 +1,11 @@
 from adminsortable2.admin import SortableAdminBase
 from django.contrib.admin import register, ModelAdmin
+from django.utils.http import urlencode
 from django.utils.translation import gettext_lazy as _
 from import_export.admin import ImportExportModelAdmin
 from modeltranslation.admin import TranslationAdmin
 from mptt.admin import DraggableMPTTAdmin
+from django.http import HttpResponseRedirect
 
 try:
     # Импортируем только из модуля django-jazzmin-admin-rangefilter
@@ -118,10 +120,10 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
     def get_export_queryset(self, request):
         """
         Return the base queryset for export. Filtering will be handled by the resource's filter_export method.
-        
+
         Args:
             request: The HTTP request object
-            
+
         Returns:
             Base queryset for export
         """
@@ -135,13 +137,13 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
     def get_export_data(self, file_format, queryset, *args, **kwargs):
         """
         Extract data from the export form and pass it to the resource for filtering.
-        
+
         Args:
             file_format: The export file format
             queryset: The queryset to export
             *args: Additional arguments
             **kwargs: Additional keyword arguments including export_form
-            
+
         Returns:
             Exported data in the specified format
         """
@@ -165,10 +167,10 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
     def get_queryset(self, request):
         """
         Optimize the queryset for the admin interface by prefetching related responses.
-        
+
         Args:
             request: The HTTP request object
-            
+
         Returns:
             Optimized queryset with prefetched related objects
         """
@@ -222,22 +224,19 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
     get_full_name.short_description = _('Full Name')
 
     def changelist_view(self, request, extra_context=None):
-        """
-        Добавляем контекст для текстового поиска в шаблон.
-        """
-        response = super().changelist_view(request, extra_context)
-        filter_value = request.GET.get('answer_filter', '')
-        if filter_value and filter_value.startswith('text_'):
-            parts = filter_value.split('_contains')
-            question_id = parts[0].replace('text_', '')
-            try:
-                question = Question.objects.get(pk=question_id)
-                if hasattr(response, 'context_data'):
-                    response.context_data['text_search_question'] = question
-                    response.context_data['text_search_value'] = request.GET.get(f'text_search_{question_id}', '')
-            except Question.DoesNotExist:
-                pass
-        return response
+        """Фильтр 'new' ставится по умолчанию, но если пользователь убрал его вручную — не навязываем снова."""
+
+        # Если фильтр статуса отсутствует, но другие GET-параметры есть → юзер сам убрал фильтр
+        if "status__exact" not in request.GET and request.GET:
+            return super().changelist_view(request, extra_context)
+
+        # Если в GET-запросе вообще нет параметров → значит, это первый заход, ставим статус "new"
+        if not request.GET:
+            q = request.GET.copy()
+            q["status__exact"] = "new"
+            return HttpResponseRedirect(f"{request.path}?{q.urlencode()}")
+
+        return super().changelist_view(request, extra_context)
 
     class Media:
         js = 'admin/js/multi_select.js',

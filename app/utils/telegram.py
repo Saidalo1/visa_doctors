@@ -90,7 +90,7 @@ def format_submission_notification(submission_id: int) -> str:
         responses = (
             Response.objects
             .filter(submission_id=submission_id)
-            .select_related('question')
+            .select_related('question', 'question__field_type')
             .prefetch_related('selected_options', 'selected_options__parent')
             .order_by('question_id')
         )
@@ -98,7 +98,14 @@ def format_submission_notification(submission_id: int) -> str:
         # Перебираем все ответы
         for response in responses:
             # Используем field_key (если нет, подстраховываемся question.title)
-            field_key = response.question.field_type.field_key or response.question.field_type.title or "Unknown field"
+            field_key = (response.question.field_type.field_key 
+                        if response.question.field_type 
+                        else response.question.title)
+
+            # Если это текстовый вопрос
+            if response.question.input_type == 'text':
+                message_lines.append(f"""  • *{field_key}:* {response.text_answer or "Ko    'rsatilmagan"}""")
+                continue
 
             # Список выбранных опций (если это чекбоксы, селекты и т.д.)
             selected_options = list(response.selected_options.all())
@@ -110,24 +117,32 @@ def format_submission_notification(submission_id: int) -> str:
                 if len(sorted_options) > 1:
                     message_lines.append(f"  • *{field_key}:*")
                     for option in sorted_options:
-                        if option.parent:
-                            message_lines.append(f"    ◦ {option.parent.text} → {option.text}")
+                        # Если у опции есть has_custom_input и пользовательский ввод
+                        if option.has_custom_input and response.text_answer:
+                            if option.parent:
+                                message_lines.append(f"    ◦ {option.parent.text} → {response.text_answer}")
+                            else:
+                                message_lines.append(f"    ◦ {response.text_answer}")
                         else:
-                            message_lines.append(f"    ◦ {option.text}")
+                            if option.parent:
+                                message_lines.append(f"    ◦ {option.parent.text} → {option.text}")
+                            else:
+                                message_lines.append(f"    ◦ {option.text}")
                 else:
                     option = sorted_options[0]
-                    if option.parent:
-                        message_lines.append(f"  • *{field_key}:* {option.parent.text} → {option.text}")
+                    # Если у опции есть has_custom_input и пользовательский ввод
+                    if option.has_custom_input and response.text_answer:
+                        if option.parent:
+                            message_lines.append(f"  • *{field_key}:* {option.parent.text} → {response.text_answer}")
+                        else:
+                            message_lines.append(f"  • *{field_key}:* {response.text_answer}")
                     else:
-                        message_lines.append(f"  • *{field_key}:* {option.text}")
+                        if option.parent:
+                            message_lines.append(f"  • *{field_key}:* {option.parent.text} → {option.text}")
+                        else:
+                            message_lines.append(f"  • *{field_key}:* {option.text}")
 
-
-
-            # Если это обычный текстовый ответ
-            elif response.text_answer:
-                message_lines.append(f"  • *{field_key}:* {response.text_answer}")
-
-            # Если пользователь ничего не ввёл
+            # Если пользователь ничего не выбрал
             else:
                 message_lines.append(f"  • *{field_key}:* Ko'rsatilmagan")
 
