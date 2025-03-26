@@ -1,6 +1,8 @@
 """Command and message handlers for Telegram bot."""
 import logging
 from datetime import datetime
+import tempfile
+import os
 
 from aiogram import types
 from aiogram.fsm.context import FSMContext
@@ -264,7 +266,6 @@ def perform_export(queryset):
     try:
         logger.info("Starting export process...")
         logger.info(f"Queryset type: {type(queryset)}")
-        logger.info(f"Queryset content: {queryset}")
         
         admin = SurveySubmissionAdmin(SurveySubmission, site)
         logger.info("Created admin instance")
@@ -281,17 +282,16 @@ def perform_export(queryset):
         logger.info(f"Export data type: {type(export_data)}")
         
         # Create temporary file
-        filename = f"submissions_export_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-        logger.info(f"Creating file: {filename}")
-        
-        # Convert export data to bytes if needed
-        export_bytes = file_format.export_data(export_data)
-        if isinstance(export_bytes, str):
-            export_bytes = export_bytes.encode('utf-8')
+        with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as temp_file:
+            filename = temp_file.name
+            logger.info(f"Creating temporary file: {filename}")
             
-        with open(filename, 'wb') as f:
-            logger.info("Writing data to file...")
-            f.write(export_bytes)
+            # Convert export data to bytes if needed
+            export_bytes = file_format.export_data(export_data)
+            if isinstance(export_bytes, str):
+                export_bytes = export_bytes.encode('utf-8')
+                
+            temp_file.write(export_bytes)
             logger.info("Data written successfully")
             
         logger.info("Export completed successfully")
@@ -314,13 +314,17 @@ async def export_results(callback_query: types.CallbackQuery, state: FSMContext)
 
         if queryset:
             # Perform export in synchronous context
-            filename = await perform_export(queryset)
+            temp_filename = await perform_export(queryset)
 
-            # Send file
-            await callback_query.message.answer_document(
-                FSInputFile(filename)
-            )
-            await callback_query.answer("✅ Экспорт выполнен")
+            try:
+                # Send file
+                await callback_query.message.answer_document(
+                    FSInputFile(temp_filename)
+                )
+                await callback_query.answer("✅ Экспорт выполнен")
+            finally:
+                # Delete temporary file
+                os.unlink(temp_filename)
         else:
             await callback_query.answer("❌ Нет данных для экспорта")
 

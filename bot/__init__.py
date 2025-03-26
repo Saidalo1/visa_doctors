@@ -39,10 +39,10 @@ class VisaDoctorsBot:
 
         # Register message handlers
         self.dp.message.register(cmd_start, Command(commands=['start']))
-        self.dp.message.register(show_filters, F.text == "🔍 Фильтры")
+        # self.dp.message.register(show_filters, F.text == "🔍 Фильтры")
         self.dp.message.register(process_value_input, FilterStates.entering_value)
-        self.dp.message.register(show_results, F.text == "📊 Результаты")
-        self.dp.message.register(clear_filters, F.text == "🔄 Сбросить фильтры")
+        # self.dp.message.register(show_results, F.text == "📊 Результаты")
+        # self.dp.message.register(clear_filters, F.text == "🔄 Сбросить фильтры")
 
         # Register callback query handler
         self.dp.callback_query.register(process_callback)

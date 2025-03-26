@@ -26,10 +26,6 @@ def get_filters_menu(filters: List[Dict[str, Any]]) -> InlineKeyboardMarkup:
     
     # Add date filters
     if date_filters:
-        builder.row(InlineKeyboardButton(
-            text="📅 Фильтры по дате",
-            callback_data="ignore"
-        ))
         for f in date_filters:
             builder.row(InlineKeyboardButton(
                 text=f"📅 {f['name']}",
@@ -38,10 +34,6 @@ def get_filters_menu(filters: List[Dict[str, Any]]) -> InlineKeyboardMarkup:
     
     # Add question filters
     if question_filters:
-        builder.row(InlineKeyboardButton(
-            text="❓ Фильтры по вопросам",
-            callback_data="ignore"
-        ))
         for f in question_filters:
             builder.row(InlineKeyboardButton(
                 text=f"❓ {f['name']}",
