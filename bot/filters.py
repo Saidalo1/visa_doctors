@@ -15,13 +15,19 @@ class SurveyFilter:
     def __init__(self, state: Dict[str, Any] = None):
         """Initialize filter manager."""
         if state is None:
-            state = {'date_filters': {}, 'response_filters': {}, 'selected_dates': set()}
+            state = {
+                'date_filters': {},
+                'response_filters': {},
+                'selected_dates': set(),
+                'status_filter': None
+            }
         
         self.date_filters = state.get('date_filters', {})
         self.response_filters = {}  # Will be populated from response_filters_data
         self._response_filters_data = state.get('response_filters', {})  # Store IDs instead of objects
         self.selected_dates = set(state.get('selected_dates', set()))  # Store selected dates
         self._questions = None  # Lazy load questions
+        self._status_filter = state.get('status_filter')  # Store status filter
         
     @property
     def questions(self):
@@ -35,13 +41,22 @@ class SurveyFilter:
         return {
             'date_filters': self.date_filters,
             'response_filters': self._response_filters_data,
-            'selected_dates': list(self.selected_dates)  # Convert set to list for JSON serialization
+            'selected_dates': list(self.selected_dates),  # Convert set to list for JSON serialization
+            'status_filter': self._status_filter
         }
         
     @sync_to_async
     def get_active_filters(self) -> List[Dict[str, Any]]:
         """Get list of active filters."""
         active_filters = []
+        
+        # Add status filter if set
+        if hasattr(self, '_status_filter') and self._status_filter:
+            status_display = dict(SurveySubmission.Status.choices)[self._status_filter]
+            active_filters.append({
+                'name': 'Статус',
+                'value': status_display
+            })
         
         # Add date filters
         date_ranges = {}
@@ -118,6 +133,10 @@ class SurveyFilter:
         """Get filtered submissions based on current filters."""
         queryset = SurveySubmission.objects.all()
 
+        # Apply status filter
+        if hasattr(self, '_status_filter') and self._status_filter:
+            queryset = queryset.filter(status=self._status_filter)
+
         # Apply date filters
         for field, value in self.date_filters.items():
             # Convert string date to timezone-aware datetime
@@ -169,6 +188,12 @@ class SurveyFilter:
                 'id': 'updated_at',
                 'name': 'Дата обновления',
                 'type': 'date'
+            },
+            {
+                'id': 'status',
+                'name': 'Статус',
+                'type': 'status',
+                'choices': dict((key, str(value)) for key, value in SurveySubmission.Status.choices)
             }
         ]
         
@@ -182,3 +207,8 @@ class SurveyFilter:
             })
             
         return filters 
+
+    @sync_to_async
+    def set_status_filter(self, status: str) -> None:
+        """Set status filter."""
+        self._status_filter = status 

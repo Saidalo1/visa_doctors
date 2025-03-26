@@ -1,21 +1,21 @@
 """Command and message handlers for Telegram bot."""
 import logging
-from datetime import datetime
-import tempfile
 import os
+import tempfile
+from datetime import datetime
 
 from aiogram import types
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import FSInputFile
+from aiogram.types import InlineKeyboardButton
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from asgiref.sync import sync_to_async
-from django.utils import timezone
-from aiogram.exceptions import TelegramBadRequest
 from django.contrib.admin.sites import site
-from django.http import HttpRequest
-from django.db import models
-from django.db.models import OuterRef, Subquery
+from django.utils import timezone
 
 from app.admin import SurveySubmissionAdmin
+from app.models import Response, SurveySubmission
 from bot.filters import SurveyFilter
 from bot.keyboards import (
     get_filters_menu,
@@ -23,7 +23,6 @@ from bot.keyboards import (
     get_results_keyboard
 )
 from bot.states import FilterStates
-from app.models import Response, SurveySubmission
 
 logger = logging.getLogger(__name__)
 
@@ -135,6 +134,23 @@ async def process_filter_callback(callback_query: types.CallbackQuery, state: FS
                     now.month,
                     filter_manager.selected_dates
                 )
+            )
+        elif filter_type == 'status':
+            # Show status selection keyboard
+            choices = selected_filter['choices']
+            keyboard = InlineKeyboardBuilder()
+            for value, label in choices.items():
+                keyboard.row(InlineKeyboardButton(
+                    text=label,
+                    callback_data=f"status_{value}"
+                ))
+            keyboard.row(InlineKeyboardButton(
+                text="🔙 Назад",
+                callback_data="back_to_filters"
+            ))
+            await callback_query.message.edit_text(
+                "📊 Выберите статус:",
+                reply_markup=keyboard.as_markup()
             )
         else:
             # Ask for text input
@@ -378,6 +394,35 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
         await process_filter_callback(callback_query, state)
     elif callback_query.data.startswith(('date_', 'month_', 'back_to_filters', 'ignore')):
         await process_calendar_callback(callback_query, state)
+    elif callback_query.data.startswith('status_'):
+        # Handle status selection
+        data = await state.get_data()
+        filter_state = data.get('filter_state', None)
+        filter_manager = SurveyFilter(filter_state)
+        
+        # Get selected status
+        status = callback_query.data.split('_', 1)[1]  # Split only once to get full status
+        
+        # Set status filter
+        await filter_manager.set_status_filter(status)
+        
+        # Store updated filter state
+        await state.update_data(filter_state=filter_manager.get_state())
+        
+        # Show filters menu with active filters
+        filters = await filter_manager.get_available_filters()
+        active_filters = await filter_manager.get_active_filters()
+        
+        message_text = "📊 Выберите фильтр из списка:"
+        if active_filters:
+            message_text += "\n\n📌 Активные фильтры:\n"
+            for f in active_filters:
+                message_text += f"• {f['name']}: {f['value']}\n"
+                
+        await callback_query.message.edit_text(
+            message_text,
+            reply_markup=get_filters_menu(filters)
+        )
     elif callback_query.data.startswith('page_'):
         # Handle pagination
         page = int(callback_query.data.split('_')[1])

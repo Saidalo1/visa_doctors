@@ -17,10 +17,13 @@ def get_filters_menu(filters: List[Dict[str, Any]]) -> InlineKeyboardMarkup:
     # Group filters by type
     date_filters = []
     question_filters = []
+    status_filter = None
     
     for f in filters:
         if f['type'] == 'date':
             date_filters.append(f)
+        elif f['type'] == 'status':
+            status_filter = f
         else:
             question_filters.append(f)
     
@@ -31,6 +34,13 @@ def get_filters_menu(filters: List[Dict[str, Any]]) -> InlineKeyboardMarkup:
                 text=f"📅 {f['name']}",
                 callback_data=f"filter_date_{f['id']}"
             ))
+    
+    # Add status filter if available
+    if status_filter:
+        builder.row(InlineKeyboardButton(
+            text=f"📊 {status_filter['name']}",
+            callback_data=f"filter_status_{status_filter['id']}"
+        ))
     
     # Add question filters
     if question_filters:
