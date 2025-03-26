@@ -88,7 +88,16 @@ class ContactInfoAdmin(TranslationAdmin):
 class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
     """Admin interface for SurveySubmission model."""
     resource_class = SurveySubmissionResource
-    list_display = 'id', 'get_full_name', 'get_phone_number', 'status', 'created_at', 'get_responses_count'
+    list_display = (
+        'id', 
+        'get_full_name', 
+        'get_phone_number',
+        'get_language_certificate',
+        'get_field_of_study',
+        'status', 
+        'created_at', 
+        'get_responses_count'
+    )
     list_filter = ('status', ('created_at', DateRangeFilter))
     search_fields = 'id', 'responses__text_answer'
     readonly_fields = 'created_at',
@@ -222,6 +231,42 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
         return '-'
 
     get_full_name.short_description = _('Full Name')
+
+    def get_language_certificate(self, obj):
+        """Получить информацию о языковом сертификате."""
+        try:
+            cert_response = obj.responses.filter(
+                question__field_type__field_key__iexact="language certificate"
+            ).first()
+            if cert_response:
+                if cert_response.text_answer:  # если есть пользовательский ввод
+                    return cert_response.text_answer
+                # если есть выбранные опции
+                options = cert_response.selected_options.all()
+                if options:
+                    return ', '.join(opt.text for opt in options)
+            return '-'
+        except Exception:
+            return '-'
+    get_language_certificate.short_description = _('Language Certificate')
+
+    def get_field_of_study(self, obj):
+        """Получить информацию о направлении обучения."""
+        try:
+            study_response = obj.responses.filter(
+                question__field_type__field_key__iexact="field of study"
+            ).first()
+            if study_response:
+                if study_response.text_answer:  # если есть пользовательский ввод
+                    return study_response.text_answer
+                # если есть выбранные опции
+                options = study_response.selected_options.all()
+                if options:
+                    return ', '.join(opt.text for opt in options)
+            return '-'
+        except Exception:
+            return '-'
+    get_field_of_study.short_description = _('Field of Study')
 
     def changelist_view(self, request, extra_context=None):
         """Фильтр 'new' ставится по умолчанию, но если пользователь убрал его вручную — не навязываем снова."""
