@@ -21,7 +21,7 @@ from bot.keyboards import (
     get_results_keyboard
 )
 from bot.states import FilterStates
-from app.models import Response
+from app.models import Response, SurveySubmission
 
 logger = logging.getLogger(__name__)
 
@@ -157,6 +157,18 @@ def get_name_responses(submission_ids):
     ).distinct())
 
 
+@sync_to_async
+def check_submissions_empty(queryset):
+    """Check if queryset is empty in synchronous context."""
+    return not queryset.exists()
+
+
+@sync_to_async
+def convert_queryset_to_list(queryset):
+    """Convert queryset to list in synchronous context."""
+    return list(queryset)
+
+
 async def show_results(message: types.Message | types.Message, state: FSMContext, edit_message: bool = False):
     """Show filtered results with pagination."""
     data = await state.get_data()
@@ -167,7 +179,8 @@ async def show_results(message: types.Message | types.Message, state: FSMContext
     # Get filtered submissions with all necessary related data
     submissions = await filter_manager.get_filtered_submissions()
     
-    if not submissions:
+    # Check if submissions are empty in synchronous context
+    if await check_submissions_empty(submissions):
         message_text = (
             "🔍 Ничего не найдено\n\n"
             "📊 Выберите фильтр из списка:"
@@ -190,13 +203,15 @@ async def show_results(message: types.Message | types.Message, state: FSMContext
             )
         return
 
-    total = len(submissions)
+    # Convert queryset to list for pagination in synchronous context
+    submissions_list = await convert_queryset_to_list(submissions)
+    total = len(submissions_list)
     total_pages = (total + RESULTS_PER_PAGE - 1) // RESULTS_PER_PAGE
 
     # Get paginated results
     start = (page - 1) * RESULTS_PER_PAGE
     end = start + RESULTS_PER_PAGE
-    paginated_submissions = submissions[start:end]
+    paginated_submissions = submissions_list[start:end]
 
     # Get name responses for paginated submissions
     name_responses = await get_name_responses([sub.id for sub in paginated_submissions])
@@ -244,20 +259,47 @@ async def show_results(message: types.Message | types.Message, state: FSMContext
 
 
 @sync_to_async
-def export_to_excel(queryset) -> bytes:
-    """Export queryset to Excel."""
-    from django.contrib.admin.sites import site
-    from django.http import HttpRequest
-    from app.models import SurveySubmission
-    
-    # Create a mock request
-    request = HttpRequest()
-    request.POST = {}
-    request.GET = {}
-    request.method = 'POST'
-    
-    admin = SurveySubmissionAdmin(SurveySubmission, site)
-    return admin.export_action(request, queryset)
+def perform_export(queryset):
+    """Perform export in synchronous context."""
+    try:
+        logger.info("Starting export process...")
+        logger.info(f"Queryset type: {type(queryset)}")
+        logger.info(f"Queryset content: {queryset}")
+        
+        admin = SurveySubmissionAdmin(SurveySubmission, site)
+        logger.info("Created admin instance")
+        
+        formats = admin.get_export_formats()
+        logger.info(f"Available formats: {formats}")
+        
+        file_format = formats[0]()  # Use first available format (usually xlsx)
+        logger.info(f"Selected format: {file_format}")
+        
+        # Get export data
+        logger.info("Getting export data...")
+        export_data = admin.get_data_for_export(None, queryset)
+        logger.info(f"Export data type: {type(export_data)}")
+        
+        # Create temporary file
+        filename = f"submissions_export_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        logger.info(f"Creating file: {filename}")
+        
+        # Convert export data to bytes if needed
+        export_bytes = file_format.export_data(export_data)
+        if isinstance(export_bytes, str):
+            export_bytes = export_bytes.encode('utf-8')
+            
+        with open(filename, 'wb') as f:
+            logger.info("Writing data to file...")
+            f.write(export_bytes)
+            logger.info("Data written successfully")
+            
+        logger.info("Export completed successfully")
+        return filename
+        
+    except Exception as e:
+        logger.error(f"Export error: {str(e)}", exc_info=True)
+        raise
 
 
 async def export_results(callback_query: types.CallbackQuery, state: FSMContext):
@@ -271,13 +313,8 @@ async def export_results(callback_query: types.CallbackQuery, state: FSMContext)
         queryset = await filter_manager.get_filtered_submissions()
 
         if queryset:
-            # Export to Excel
-            export_data = await export_to_excel(queryset)
-
-            # Create temporary file
-            filename = f"submissions_export_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-            with open(filename, 'wb') as f:
-                f.write(export_data)
+            # Perform export in synchronous context
+            filename = await perform_export(queryset)
 
             # Send file
             await callback_query.message.answer_document(

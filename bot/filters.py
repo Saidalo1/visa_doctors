@@ -141,7 +141,7 @@ class SurveyFilter:
             if matching_submission_ids:
                 queryset = queryset.filter(id__in=matching_submission_ids)
             else:
-                return []  # Return empty if no matches
+                return SurveySubmission.objects.none()  # Return empty queryset if no matches
 
         # Prefetch related data for efficiency
         queryset = queryset.prefetch_related(
@@ -149,7 +149,7 @@ class SurveyFilter:
             'responses__selected_options'
         )
 
-        return list(queryset.distinct())
+        return queryset.distinct()
         
     @sync_to_async
     def get_available_filters(self) -> List[Dict[str, Any]]:

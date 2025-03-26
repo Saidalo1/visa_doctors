@@ -138,8 +138,8 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
         """
         # We'll just log the form data for debugging but won't apply filters here
         # as they will be applied in resource.filter_export
-        if hasattr(self, 'export_form') and self.export_form.is_valid():
-            print(f"Export form data: {self.export_form.cleaned_data}")
+        # if hasattr(self, 'export_form') and self.export_form.is_valid():
+            # print(f"Export form data: {self.export_form.cleaned_data}")
 
         return super().get_export_queryset(request)
 
@@ -162,7 +162,7 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
         # Extract form data to pass to the resource's filter_export method
         if self.export_form and self.export_form.is_valid():
             form_data = self.export_form.cleaned_data
-            print(f"Export form data: {form_data}")
+            # print(f"Export form data: {form_data}")
 
             # Add form data to kwargs that will be passed to resource.filter_export
             # Skip file_format since it's already a positional argument
@@ -170,7 +170,7 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
                 if key != 'file_format':  # Skip file_format to avoid duplicate argument
                     kwargs[key] = value
 
-        print(file_format, kwargs)
+        # print(file_format, kwargs)
         return super().get_export_data(file_format, queryset, *args, **kwargs)
 
     def get_queryset(self, request):
