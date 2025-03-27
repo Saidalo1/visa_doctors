@@ -1,7 +1,7 @@
 """Keyboards for Telegram bot."""
 from datetime import datetime, timedelta
 from calendar import monthcalendar
-from typing import List, Dict, Any, Set
+from typing import List, Dict, Any, Set, Optional
 
 from aiogram.types import (
     InlineKeyboardMarkup,
@@ -10,59 +10,115 @@ from aiogram.types import (
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
-def get_filters_menu(filters: List[Dict[str, Any]]) -> InlineKeyboardMarkup:
-    """Create filters menu keyboard."""
-    builder = InlineKeyboardBuilder()
+def get_filters_menu(
+    filters: List[Dict],
+    current_filter: Optional[str] = None,
+    current_parent: Optional[str] = None,
+    selected_values: Optional[Set[str]] = None
+) -> InlineKeyboardMarkup:
+    """Get filters menu keyboard."""
+    keyboard = InlineKeyboardBuilder()
+    selected_values = selected_values or set()
     
-    # Group filters by type
-    date_filters = []
-    question_filters = []
-    status_filter = None
-    
-    for f in filters:
-        if f['type'] == 'date':
-            date_filters.append(f)
-        elif f['type'] == 'status':
-            status_filter = f
-        else:
-            question_filters.append(f)
-    
-    # Add date filters
-    if date_filters:
-        for f in date_filters:
-            builder.row(InlineKeyboardButton(
-                text=f"📅 {f['name']}",
-                callback_data=f"filter_date_{f['id']}"
-            ))
-    
-    # Add status filter if available
-    if status_filter:
-        builder.row(InlineKeyboardButton(
-            text=f"📊 {status_filter['name']}",
-            callback_data=f"filter_status_{status_filter['id']}"
-        ))
-    
-    # Add question filters
-    if question_filters:
-        for f in question_filters:
-            builder.row(InlineKeyboardButton(
-                text=f"❓ {f['name']}",
-                callback_data=f"filter_question_{f['id']}"
-            ))
-    
-    # Add control buttons
-    builder.row(
-        InlineKeyboardButton(
-            text="📊 Результаты",
-            callback_data="page_1"  # Show first page of results
-        ),
-        InlineKeyboardButton(
-            text="🔄 Сбросить",
-            callback_data="clear_filters"
+    if current_filter and current_parent:
+        # Show options for selected parent
+        selected_filter = next(
+            (f for f in filters if str(f['id']) == current_filter),
+            None
         )
-    )
+        if selected_filter and selected_filter['choices'].get(current_parent):
+            parent_data = selected_filter['choices'][current_parent]
+            
+            # Add parent button first
+            check = "⚪️" if set(parent_data['children'].keys()).issubset(selected_values) else ""
+            keyboard.row(InlineKeyboardButton(
+                text=f"{check} {parent_data['text']}",
+                callback_data=f"parent_{current_parent}"
+            ))
+            
+            # Add child options
+            for option_id, option_text in parent_data['children'].items():
+                check = "⚪️" if option_id in selected_values else ""
+                keyboard.row(InlineKeyboardButton(
+                    text=f"{check} {option_text}",
+                    callback_data=f"option_{option_id}"
+                ))
+            
+            # Add control buttons
+            keyboard.row(
+                InlineKeyboardButton(
+                    text="✅ Готово",
+                    callback_data="apply_filter"
+                ),
+                InlineKeyboardButton(
+                    text="🔙 Назад",
+                    callback_data="back_to_filters"
+                )
+            )
+    elif current_filter:
+        # Show root options (parents)
+        selected_filter = next(
+            (f for f in filters if str(f['id']) == current_filter),
+            None
+        )
+        if selected_filter:
+            for option_id, option_data in selected_filter['choices'].items():
+                # Add arrow for options with children
+                prefix = "➡️" if option_data.get('has_children') else ""
+                # Check if any children are selected
+                has_selected = any(
+                    child_id in selected_values 
+                    for child_id in option_data['children'].keys()
+                ) if option_data.get('has_children') else option_id in selected_values
+                check = "⚪️" if has_selected else ""
+                text = f"{check} {prefix} {option_data['text']}" if prefix else f"{check} {option_data['text']}"
+                keyboard.row(InlineKeyboardButton(
+                    text=text,
+                    callback_data=f"parent_{option_id}" if option_data.get('has_children') else f"option_{option_id}"
+                ))
+            
+            keyboard.row(
+                InlineKeyboardButton(
+                    text="✅ Готово",
+                    callback_data="apply_filter"
+                ),
+                InlineKeyboardButton(
+                    text="🔙 Назад",
+                    callback_data="back_to_filters"
+                )
+            )
+    else:
+        # Show main filters menu
+        for filter_item in filters:
+            filter_type = filter_item['type']
+            filter_id = str(filter_item['id'])
+            
+            # Add icons based on filter type
+            icon = {
+                'date': '📅',
+                'status': '📊',
+                'choice': '📝',
+                'text': '✍️'
+            }.get(filter_type, '🔍')
+            
+            keyboard.row(InlineKeyboardButton(
+                text=f"{icon} {filter_item['name']}",
+                callback_data=f"filter_{filter_type}_{filter_id}"
+            ))
+            
+        # Add control buttons if there are active filters
+        keyboard.row(
+            InlineKeyboardButton(
+                text="🔍 Показать результаты",
+                callback_data="show_results"
+            ),
+            InlineKeyboardButton(
+                text="🔄 Сбросить фильтры",
+                callback_data="clear_filters"
+            )
+        )
     
-    return builder.as_markup()
+    return keyboard.as_markup()
 
 
 def get_calendar_keyboard(year: int, month: int, selected_dates: Set[str] = None) -> InlineKeyboardMarkup:
