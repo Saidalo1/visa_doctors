@@ -90,7 +90,7 @@ class SurveyFilter:
             try:
                 question = Question.objects.get(id=data['question_id'])
                 active_filters.append({
-                    'name': question.title,
+                    'name': question.field_type.title,
                     'value': data['value']
                 })
             except Question.DoesNotExist:
@@ -201,7 +201,7 @@ class SurveyFilter:
         for question in self.questions:
             filters.append({
                 'id': str(question.id),
-                'name': question.title,
+                'name': question.field_type.title,
                 'type': 'text',
                 'question_id': question.id
             })

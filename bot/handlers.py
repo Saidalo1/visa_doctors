@@ -15,7 +15,7 @@ from django.contrib.admin.sites import site
 from django.utils import timezone
 
 from app.admin import SurveySubmissionAdmin
-from app.models import Response, SurveySubmission
+from app.models import Response, SurveySubmission, Question
 from bot.filters import SurveyFilter
 from bot.keyboards import (
     get_filters_menu,
@@ -153,9 +153,11 @@ async def process_filter_callback(callback_query: types.CallbackQuery, state: FS
                 reply_markup=keyboard.as_markup()
             )
         else:
+            first_question = await Question.objects.filter(id=filter_id).afirst()
             # Ask for text input
             await callback_query.message.edit_text(
-                "✍️ Введите значение для поиска:"
+                # f"✍️ Введите значение для поиска '{selected_filter['name']}':"
+                f"✍️ {first_question.title}:"
             )
             await state.set_state(FilterStates.entering_value)
             
@@ -544,7 +546,6 @@ async def process_calendar_callback(callback_query: types.CallbackQuery, state: 
                     start_date = min(list(filter_manager.selected_dates) + [date_str])
                     end_date = max(list(filter_manager.selected_dates) + [date_str])
                     # Clear previous filters
-                    field = selected_filter['id']
                     filter_manager.date_filters.clear()
                     filter_manager.selected_dates.clear()
                     # Add new range
