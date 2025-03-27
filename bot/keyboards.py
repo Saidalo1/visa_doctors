@@ -66,78 +66,95 @@ def get_filters_menu(filters: List[Dict[str, Any]]) -> InlineKeyboardMarkup:
 
 
 def get_calendar_keyboard(year: int, month: int, selected_dates: Set[str] = None) -> InlineKeyboardMarkup:
-    """Create calendar keyboard for date selection."""
-    builder = InlineKeyboardBuilder()
+    """
+    Create calendar keyboard for date selection.
     
-    # Get calendar for the month
+    Args:
+        year: Year to display
+        month: Month to display (1-12)
+        selected_dates: Set of selected dates in YYYY-MM-DD format
+        
+    Returns:
+        InlineKeyboardMarkup with calendar
+    """
+    keyboard = InlineKeyboardBuilder()
+    
+    # Get calendar for current month
     cal = monthcalendar(year, month)
-    current_date = datetime(year, month, 1)
-    today = datetime.now().date()
     
-    # Russian month names
-    month_names = [
-        'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-        'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
-    ]
-    
-    # Add month/year header
-    builder.row(InlineKeyboardButton(
-        text=f"📅 {month_names[month-1]} {year}",
-        callback_data="ignore"
+    # Add month and year as clickable button
+    month_name = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+                  'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'][month - 1]
+    keyboard.row(InlineKeyboardButton(
+        text=f"📅 {month_name} {year}",
+        callback_data=f"select_month-{year}-{month:02d}"  # Using hyphen as separator
     ))
     
     # Add weekday headers
-    weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
-    builder.row(*[InlineKeyboardButton(
-        text=day,
-        callback_data="ignore"
-    ) for day in weekdays])
+    weekday_names = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+    keyboard.row(*[
+        InlineKeyboardButton(
+            text=day,
+            callback_data="ignore"
+        ) for day in weekday_names
+    ])
     
-    # Add days
+    # Add calendar days
     for week in cal:
         row = []
         for day in week:
             if day == 0:
+                # Empty day
                 row.append(InlineKeyboardButton(
                     text=" ",
                     callback_data="ignore"
                 ))
             else:
-                date = datetime(year, month, day).date()
-                date_str = date.strftime('%Y-%m-%d')
+                # Format date string
+                date_str = f"{year}-{month:02d}-{day:02d}"
+                # Check if date is selected
+                is_selected = selected_dates and date_str in selected_dates
                 
-                # Format button text
-                if selected_dates and date_str in selected_dates:
-                    text = f"✓{day}"  # Selected date
-                else:
-                    text = str(day)
-                    
                 row.append(InlineKeyboardButton(
-                    text=text,
+                    text=f"✓{day}" if is_selected else str(day),
                     callback_data=f"date_{date_str}"
                 ))
-        builder.row(*row)
+        keyboard.row(*row)
     
     # Add navigation buttons
-    prev_month = current_date - timedelta(days=1)
-    next_month = datetime(year, month % 12 + 1, 1) if month < 12 else datetime(year + 1, 1, 1)
+    nav_row = []
     
-    builder.row(
-        InlineKeyboardButton(
-            text="⬅️",
-            callback_data=f"month_{prev_month.year}_{prev_month.month}"
-        ),
-        InlineKeyboardButton(
-            text="↩️ Назад",
-            callback_data="back_to_filters"
-        ),
-        InlineKeyboardButton(
-            text="➡️",
-            callback_data=f"month_{next_month.year}_{next_month.month}"
-        )
-    )
+    # Previous month
+    prev_month = month - 1
+    prev_year = year
+    if prev_month < 1:
+        prev_month = 12
+        prev_year -= 1
+    nav_row.append(InlineKeyboardButton(
+        text="◀️",
+        callback_data=f"month-{prev_year}-{prev_month:02d}"  # Using hyphen as separator
+    ))
     
-    return builder.as_markup()
+    # Back to filters
+    nav_row.append(InlineKeyboardButton(
+        text="🔙 Назад",
+        callback_data="back_to_filters"
+    ))
+    
+    # Next month
+    next_month = month + 1
+    next_year = year
+    if next_month > 12:
+        next_month = 1
+        next_year += 1
+    nav_row.append(InlineKeyboardButton(
+        text="▶️",
+        callback_data=f"month-{next_year}-{next_month:02d}"  # Using hyphen as separator
+    ))
+    
+    keyboard.row(*nav_row)
+    
+    return keyboard.as_markup()
 
 
 def get_results_keyboard(page: int, total_pages: int) -> InlineKeyboardMarkup:
