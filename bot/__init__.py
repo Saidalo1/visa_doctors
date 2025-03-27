@@ -7,6 +7,7 @@ from typing import Optional
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
+from aiogram.enums.chat_type import ChatType
 from aiogram.fsm.storage.redis import RedisStorage
 from django.conf import settings
 
@@ -75,10 +76,10 @@ class VisaDoctorsBot:
         self.storage = RedisStorage.from_url(settings.REDIS_URL)
         self.dp = Dispatcher(storage=self.storage)
 
-        # Register message handlers
-        self.dp.message.register(cmd_start, Command(commands=['start']))
-        self.dp.message.register(process_value_input, FilterStates.entering_value)
-        self.dp.callback_query.register(process_callback)
+        # Register message handlers for private chats only
+        self.dp.message.register(cmd_start, Command('start'), F.chat.type == ChatType.PRIVATE)
+        self.dp.message.register(process_value_input, FilterStates.entering_value, F.chat.type == ChatType.PRIVATE)
+        self.dp.callback_query.register(process_callback, F.message.chat.type == ChatType.PRIVATE)
 
     async def start(self) -> None:
         """Start polling."""
