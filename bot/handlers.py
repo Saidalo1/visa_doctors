@@ -128,6 +128,8 @@ async def process_filter_callback(callback_query: types.CallbackQuery, state: FS
         # Handle show results
         if callback_query.data == "show_results":
             logger.debug("Processing show results")
+            # Reset current page to 1 when showing results
+            await state.update_data(current_page=1)
             await show_results(callback_query.message, state, edit_message=True)
             return
             
@@ -145,7 +147,8 @@ async def process_filter_callback(callback_query: types.CallbackQuery, state: FS
                 filter_state=new_state,
                 current_filter=None,
                 current_parent=None,
-                selected_values=[]
+                selected_values=[],
+                current_page=1  # Reset page when clearing filters
             )
             
             # Show clean filters menu with new message
@@ -404,49 +407,57 @@ async def process_filter_callback(callback_query: types.CallbackQuery, state: FS
         # Handle apply filter
         if callback_query.data == "apply_filter":
             logger.debug("Processing apply filter")
-            if current_filter and selected_values:
-                # Get the question from the filter
-                selected_question = next(
-                    (f for f in filters if str(f['id']) == current_filter),
-                    None
-                )
+            
+            if not current_filter:
+                await callback_query.answer("❌ Фильтр не выбран")
+                return
                 
+            # If filter has children options
+            selected_question = next(
+                (f for f in filters if str(f['id']) == current_filter),
+                None
+            )
+            
+            if selected_question:
                 logger.debug(f"Selected question: {selected_question}")
                 
-                if selected_question:
-                    # Add option filters
-                    for value in selected_values:
-                        logger.debug(f"Adding option filter - question: {selected_question['question_id']}, value: {value}")
-                        await filter_manager.add_option_filter(selected_question['question_id'], value)
+                # Add all selected options to filter
+                for option_id in selected_values:
+                    logger.debug(f"Adding option filter - question: {current_filter}, value: {option_id}")
                     
-                    # Store updated filter state
-                    updated_state = filter_manager.get_state()
-                    logger.debug(f"Updating state with: {updated_state}")
-                    await state.update_data(
-                        filter_state=updated_state,
-                        current_filter=None,
-                        current_parent=None,
-                        selected_values=[]
-                    )
-                    
-                    # Show main filters menu
-                    filters = await filter_manager.get_available_filters()
-                    active_filters = await filter_manager.get_active_filters()
-                    
-                    message_text = "📊 Выберите фильтр:"
-                    if active_filters:
-                        message_text += "\n\n📌 Активные фильтры:\n"
-                        for f in active_filters:
-                            message_text += f"• {f['name']}: {f['value']}\n"
-                    
-                    try:
-                        await callback_query.message.edit_text(
-                            message_text,
-                            reply_markup=get_filters_menu(filters)
+                    if selected_question['type'] == 'choice':
+                        await filter_manager.add_option_filter(
+                            question_id=int(selected_question['question_id']),
+                            option_id=option_id
                         )
-                    except TelegramBadRequest as e:
-                        if "message is not modified" not in str(e):
-                            raise
+                
+                # Reset current filter and parent
+                filter_state = filter_manager.get_state()
+                logger.debug(f"Updating state with: {filter_state}")
+                await state.update_data(
+                    filter_state=filter_state,
+                    current_filter=None,
+                    current_parent=None,
+                    selected_values=[],
+                    current_page=1  # Reset page when applying filter
+                )
+                
+                # Show main filters menu with updated filters
+                filters = await filter_manager.get_available_filters()
+                active_filters = await filter_manager.get_active_filters()
+                
+                # Format message with active filters
+                message_text = "📊 Выберите фильтр из списка:"
+                if active_filters:
+                    message_text += "\n\n📌 Активные фильтры:\n"
+                    for f in active_filters:
+                        message_text += f"• {f['name']}: {f['value']}\n"
+                        
+                # Update message with filters menu
+                await callback_query.message.edit_text(
+                    message_text,
+                    reply_markup=get_filters_menu(filters)
+                )
                 return
             
         # Handle status selection
@@ -642,8 +653,14 @@ async def show_results(message: types.Message | types.Message, state: FSMContext
         # Convert queryset to list for pagination
         submissions_list = await convert_queryset_to_list(submissions)
         total = len(submissions_list)
-        total_pages = (total + RESULTS_PER_PAGE - 1) // RESULTS_PER_PAGE
+        total_pages = max(1, (total + RESULTS_PER_PAGE - 1) // RESULTS_PER_PAGE)
         logger.debug(f"Total submissions: {total}, Total pages: {total_pages}")
+
+        # Validate that the requested page is valid
+        if page > total_pages:
+            page = 1  # Reset to first page if current page is invalid
+            await state.update_data(current_page=page)
+            logger.debug(f"Invalid page requested. Reset to page {page}")
 
         # Get paginated results
         start = (page - 1) * RESULTS_PER_PAGE
