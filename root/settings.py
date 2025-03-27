@@ -432,11 +432,7 @@ CKEDITOR_5_MAX_UPLOAD_SIZE = 5 * 1024 * 1024  # 5MB max file size
 
 # Security Settings
 SECURE_BROWSER_XSS_FILTER = True
-SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
-SECURE_HSTS_SECONDS = 31536000  # 1 year
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
 
 # Recaptcha
 RECAPTCHA_ENABLED = env.bool('RECAPTCHA_ENABLED', True)
@@ -637,7 +633,7 @@ JAZZMIN_UI_TWEAKS = {
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': 'redis://redis:6379/1',
+        'LOCATION': f"redis://{env.str('REDIS_HOST', 'redis')}:{env.int('REDIS_PORT', 6379)}/{env.int('REDIS_DB', 1)}",
         'OPTIONS': {
             'CLIENT_CLASS': 'django.core.cache.client.DefaultClient',
             'IGNORE_EXCEPTIONS': True,
@@ -658,7 +654,7 @@ if not DEBUG:
 TELEGRAM_BOT_TOKEN = env.str('TELEGRAM_BOT_TOKEN', default='')
 TELEGRAM_CHAT_ID = env.str('TELEGRAM_CHAT_ID', default='')
 TELEGRAM_NOTIFICATIONS_ENABLED = env.bool('TELEGRAM_NOTIFICATIONS_ENABLED', default=False)
-REDIS_URL = f"redis://:{env.str('REDIS_PASSWORD')}@{env.str('REDIS_HOST')}:{env.int('REDIS_PORT')}/{env.int('TELEGRAM_REDIS_DB')}"
+REDIS_URL = f"redis://:{env.str('REDIS_PASSWORD')}@{env.str('REDIS_HOST', 'redis')}:{env.int('REDIS_PORT', 6379)}/{env.int('TELEGRAM_REDIS_DB', 2)}"
 
 # Base URL for admin links
 BASE_URL = env.str('BASE_URL', default='http://localhost:8000')
