@@ -1,6 +1,8 @@
 """Command and message handlers for Telegram bot."""
 import logging
+from logging.handlers import RotatingFileHandler
 import os
+import sys
 import tempfile
 from datetime import datetime
 
@@ -24,7 +26,42 @@ from bot.keyboards import (
 )
 from bot.states import FilterStates
 
+# Configure logging
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# Create logs directory if it doesn't exist
+log_dir = 'logs'
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
+# Create rotating file handler
+file_handler = RotatingFileHandler(
+    filename=os.path.join(log_dir, 'bot.log'),
+    maxBytes=5*1024*1024,  # 5MB
+    backupCount=3,  # Keep 3 backup files
+    encoding='utf-8'
+)
+file_handler.setLevel(logging.INFO)
+
+# Create formatter
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+# Add formatter to file handler
+file_handler.setFormatter(formatter)
+
+# Remove any existing handlers and add file handler
+logger.handlers = []
+logger.addHandler(file_handler)
+
+# Add minimal console output for critical errors only
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.CRITICAL)
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
 
 # Constants
 RESULTS_PER_PAGE = 5
@@ -447,11 +484,17 @@ async def process_calendar_callback(callback_query: types.CallbackQuery, state: 
     filter_state = data.get('filter_state', None)
     filter_manager = SurveyFilter(filter_state)
     
+    logger.debug(f"Calendar callback: {callback_data}")
+    logger.debug(f"Current date_filters: {filter_manager.date_filters}")
+    logger.debug(f"Current selected_dates: {filter_manager.selected_dates}")
+    
     if callback_data == "ignore":
+        logger.debug("Ignoring calendar callback")
         await callback_query.answer()
         return
         
     if callback_data == "back_to_filters":
+        logger.debug("Going back to filters")
         # Show filters menu again
         filters = await filter_manager.get_available_filters()
         active_filters = await filter_manager.get_active_filters()
@@ -473,6 +516,7 @@ async def process_calendar_callback(callback_query: types.CallbackQuery, state: 
     if callback_data.startswith("month_"):
         # Handle month navigation
         _, year, month = callback_data.split('_')
+        logger.debug(f"Navigating to month: {year}-{month}")
         
         # Get date range status and selected dates
         date_range_status = "начальную" if not filter_manager.selected_dates else "конечную"
@@ -500,16 +544,21 @@ async def process_calendar_callback(callback_query: types.CallbackQuery, state: 
     if callback_data.startswith("date_"):
         # Handle date selection
         date_str = callback_data[5:]  # Remove "date_" prefix
+        logger.debug(f"Selected date: {date_str}")
         
         try:
             # Parse date
             selected_filter = data.get('selected_filter')
             if not selected_filter:
+                logger.error("No filter selected")
                 await callback_query.answer("❌ Фильтр не выбран")
                 return
                 
+            logger.debug(f"Current filter: {selected_filter}")
+            
             # Toggle date selection
             if date_str in filter_manager.selected_dates:
+                logger.debug(f"Removing date: {date_str}")
                 filter_manager.selected_dates.remove(date_str)
                 # Remove from date filters
                 field = selected_filter['id']
@@ -520,11 +569,14 @@ async def process_calendar_callback(callback_query: types.CallbackQuery, state: 
             else:
                 # Add new date filter
                 if len(filter_manager.selected_dates) == 0:
+                    logger.debug("Adding first date")
                     # First date - set as start date
                     await filter_manager.add_date_filter(
                         field=selected_filter['id'],
                         start_date=date_str
                     )
+                    logger.debug(f"After adding first date - date_filters: {filter_manager.date_filters}")
+                    logger.debug(f"After adding first date - selected_dates: {filter_manager.selected_dates}")
                     
                     # Show calendar for end date selection
                     date = datetime.strptime(date_str, "%Y-%m-%d")
@@ -542,9 +594,12 @@ async def process_calendar_callback(callback_query: types.CallbackQuery, state: 
                         )
                     )
                 elif len(filter_manager.selected_dates) == 1:
+                    logger.debug("Adding second date")
                     # Second date - set as end date if later than start date
                     start_date = min(list(filter_manager.selected_dates) + [date_str])
                     end_date = max(list(filter_manager.selected_dates) + [date_str])
+                    logger.debug(f"Calculated start_date: {start_date}, end_date: {end_date}")
+                    
                     # Clear previous filters
                     filter_manager.date_filters.clear()
                     filter_manager.selected_dates.clear()
@@ -554,6 +609,14 @@ async def process_calendar_callback(callback_query: types.CallbackQuery, state: 
                         start_date=start_date,
                         end_date=end_date
                     )
+                    
+                    logger.debug(f"After adding date range - date_filters: {filter_manager.date_filters}")
+                    logger.debug(f"After adding date range - selected_dates: {filter_manager.selected_dates}")
+                    
+                    # Store updated filter state BEFORE showing filters menu
+                    updated_state = filter_manager.get_state()
+                    await state.update_data(filter_state=updated_state)
+                    logger.debug(f"Stored updated state after second date: {updated_state}")
                     
                     # Show filters menu after selecting date range
                     filters = await filter_manager.get_available_filters()
@@ -572,6 +635,7 @@ async def process_calendar_callback(callback_query: types.CallbackQuery, state: 
                     await callback_query.answer("✅ Диапазон дат выбран")
                     return
                 else:
+                    logger.debug("Resetting date selection")
                     # Reset selection for new range
                     filter_manager.selected_dates.clear()
                     filter_manager.date_filters.clear()
@@ -598,8 +662,10 @@ async def process_calendar_callback(callback_query: types.CallbackQuery, state: 
             
             # Store updated filter state
             await state.update_data(filter_state=filter_manager.get_state())
+            logger.debug(f"Stored filter state: {filter_manager.get_state()}")
             
-        except ValueError:
+        except ValueError as e:
+            logger.error(f"Error processing date: {e}")
             await callback_query.answer("❌ Ошибка при выборе даты")
             return
             
@@ -611,7 +677,11 @@ async def process_value_input(message: types.Message, state: FSMContext):
     data = await state.get_data()
     selected_filter = data.get('selected_filter')
     
+    logger.debug(f"Processing value input: {message.text}")
+    logger.debug(f"Selected filter: {selected_filter}")
+    
     if not selected_filter or 'question_id' not in selected_filter:
+        logger.error("Invalid filter selected")
         # Show filters menu with error
         filter_manager = SurveyFilter()
         filters = await filter_manager.get_available_filters()
@@ -624,13 +694,20 @@ async def process_value_input(message: types.Message, state: FSMContext):
         return
         
     filter_state = data.get('filter_state', None)
+    logger.debug(f"Current filter state: {filter_state}")
+    
     filter_manager = SurveyFilter(filter_state)
+    logger.debug(f"Before adding response - date_filters: {filter_manager.date_filters}")
+    logger.debug(f"Before adding response - selected_dates: {filter_manager.selected_dates}")
 
     # Add response filter
     await filter_manager.add_response_filter(
         question_id=selected_filter['question_id'],
         value=message.text
     )
+
+    logger.debug(f"After adding response - date_filters: {filter_manager.date_filters}")
+    logger.debug(f"After adding response - selected_dates: {filter_manager.selected_dates}")
 
     # Store updated filter state
     await state.update_data(filter_state=filter_manager.get_state())
@@ -640,6 +717,7 @@ async def process_value_input(message: types.Message, state: FSMContext):
     # Show filters menu with active filters
     filters = await filter_manager.get_available_filters()
     active_filters = await filter_manager.get_active_filters()
+    logger.debug(f"Active filters: {active_filters}")
 
     # Format message with active filters
     message_text = "📊 Выберите фильтр из списка:"

@@ -1,4 +1,8 @@
 """Filter manager for survey submissions."""
+import logging
+from logging.handlers import RotatingFileHandler
+import os
+import sys
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Set
 
@@ -8,12 +12,50 @@ from django.utils import timezone
 
 from app.models import SurveySubmission, Question, Response
 
+# Configure logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# Create logs directory if it doesn't exist
+log_dir = 'logs'
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
+# Create rotating file handler
+file_handler = RotatingFileHandler(
+    filename=os.path.join(log_dir, 'bot.log'),
+    maxBytes=5*1024*1024,  # 5MB
+    backupCount=3,  # Keep 3 backup files
+    encoding='utf-8'
+)
+file_handler.setLevel(logging.INFO)
+
+# Create formatter
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+# Add formatter to file handler
+file_handler.setFormatter(formatter)
+
+# Remove any existing handlers and add file handler
+logger.handlers = []
+logger.addHandler(file_handler)
+
+# Add minimal console output for critical errors only
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.CRITICAL)
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
 
 class SurveyFilter:
     """Filter manager for survey submissions."""
     
     def __init__(self, state: Dict[str, Any] = None):
         """Initialize filter manager."""
+        logger.debug(f"Initializing SurveyFilter with state: {state}")
+        
         if state is None:
             state = {
                 'date_filters': {},
@@ -29,6 +71,9 @@ class SurveyFilter:
         self._questions = None  # Lazy load questions
         self._status_filter = state.get('status_filter')  # Store status filter
         
+        logger.debug(f"Initialized with date_filters: {self.date_filters}")
+        logger.debug(f"Initialized with selected_dates: {self.selected_dates}")
+        
     @property
     def questions(self):
         """Lazy load questions."""
@@ -38,12 +83,14 @@ class SurveyFilter:
         
     def get_state(self) -> Dict[str, Any]:
         """Get serializable state of the filter manager."""
-        return {
+        state = {
             'date_filters': self.date_filters,
             'response_filters': self._response_filters_data,
             'selected_dates': list(self.selected_dates),  # Convert set to list for JSON serialization
             'status_filter': self._status_filter
         }
+        logger.debug(f"Getting state: {state}")
+        return state
         
     @sync_to_async
     def get_active_filters(self) -> List[Dict[str, Any]]:
@@ -101,23 +148,36 @@ class SurveyFilter:
     @sync_to_async
     def add_date_filter(self, field: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> None:
         """Add date filter."""
+        logger.debug(f"Adding date filter - field: {field}, start: {start_date}, end: {end_date}")
+        logger.debug(f"Before adding - date_filters: {self.date_filters}")
+        logger.debug(f"Before adding - selected_dates: {self.selected_dates}")
+        
         if not any([start_date, end_date]):
             return
             
-        filter_kwargs = {}
+        # Clear existing date filters for this field
+        field_filters = [f"{field}__gte", f"{field}__lte"]
+        for key in field_filters:
+            if key in self.date_filters:
+                del self.date_filters[key]
+                
         if start_date:
-            filter_kwargs[f"{field}__gte"] = start_date
+            self.date_filters[f"{field}__gte"] = start_date
             self.selected_dates.add(start_date)
             
         if end_date:
-            filter_kwargs[f"{field}__lte"] = end_date
+            self.date_filters[f"{field}__lte"] = end_date
             self.selected_dates.add(end_date)
             
-        self.date_filters.update(filter_kwargs)
+        logger.debug(f"After adding - date_filters: {self.date_filters}")
+        logger.debug(f"After adding - selected_dates: {self.selected_dates}")
         
     @sync_to_async
     def add_response_filter(self, question_id: int, value: str) -> None:
         """Add response filter."""
+        logger.debug(f"Adding response filter - question_id: {question_id}, value: {value}")
+        logger.debug(f"Before adding - date_filters: {self.date_filters}")
+        
         try:
             question = Question.objects.get(id=question_id)
             self._response_filters_data[str(question_id)] = {
@@ -125,7 +185,12 @@ class SurveyFilter:
                 'question_id': question_id
             }
             self.response_filters[question] = value
+            
+            logger.debug(f"After adding - date_filters: {self.date_filters}")
+            logger.debug(f"Response filters data: {self._response_filters_data}")
+            
         except Question.DoesNotExist:
+            logger.error(f"Question {question_id} not found")
             pass
             
     @sync_to_async
