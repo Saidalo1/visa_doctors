@@ -125,13 +125,183 @@ async def process_filter_callback(callback_query: types.CallbackQuery, state: FS
         
         filter_manager = SurveyFilter(filter_state)
         
-        # Handle show results
-        if callback_query.data == "show_results":
-            logger.debug("Processing show results")
-            # Reset current page to 1 when showing results
-            await state.update_data(current_page=1)
-            await show_results(callback_query.message, state, edit_message=True)
-            return
+        # Handle status selection
+        if callback_query.data.startswith("status_"):
+            logger.debug("Processing status selection")
+            status = callback_query.data.split('_', 1)[1]  # Split only once to get full status
+            
+            # Toggle status selection
+            await filter_manager.toggle_status_filter(status)
+            
+            # Store updated filter state
+            updated_state = filter_manager.get_state()
+            logger.debug(f"Updating state with: {updated_state}")
+            
+            # Keep current filter and display status selection menu
+            if current_filter == 'status':
+                await state.update_data(filter_state=updated_state)
+                
+                # Get status filter choices
+                selected_filter = next(
+                    (f for f in filters if f['id'] == 'status'),
+                    None
+                )
+                
+                if selected_filter:
+                    # Show status selection keyboard with current statuses marked
+                    choices = selected_filter['choices']
+                    keyboard = InlineKeyboardBuilder()
+                    
+                    for value, label in choices.items():
+                        # Add checkmark for selected status
+                        text = f"⚪️ {label}" if value in filter_manager.status_filters else label
+                        keyboard.row(InlineKeyboardButton(
+                            text=text,
+                            callback_data=f"status_{value}"
+                        ))
+                    
+                    # Add control buttons
+                    keyboard.row(
+                        InlineKeyboardButton(
+                            text="✅ Готово",
+                            callback_data="back_to_filters"
+                        ),
+                        InlineKeyboardButton(
+                            text="🔙 Назад",
+                            callback_data="back_to_filters"
+                        )
+                    )
+                    
+                    try:
+                        await callback_query.message.edit_text(
+                            "📊 Выберите статусы (можно несколько):",
+                            reply_markup=keyboard.as_markup()
+                        )
+                    except TelegramBadRequest as e:
+                        if "message is not modified" not in str(e):
+                            raise
+                    
+                return
+            else:
+                # If not in status selection, just update state and return to filters
+                await state.update_data(filter_state=updated_state)
+                
+                # Show filters menu with active filters
+                filters = await filter_manager.get_available_filters()
+                active_filters = await filter_manager.get_active_filters()
+                
+                message_text = "📊 Выберите фильтр из списка:"
+                if active_filters:
+                    message_text += "\n\n📌 Активные фильтры:\n"
+                    for f in active_filters:
+                        message_text += f"• {f['name']}: {f['value']}\n"
+                        
+                try:
+                    await callback_query.message.edit_text(
+                        message_text,
+                        reply_markup=get_filters_menu(filters)
+                    )
+                except TelegramBadRequest as e:
+                    if "message is not modified" not in str(e):
+                        raise
+                return
+                
+        # Handle filter selection
+        if callback_query.data.startswith("filter_"):
+            logger.debug("Processing filter selection")
+            parts = callback_query.data.split("_", 2)  # Split into 3 parts max
+            
+            if len(parts) != 3:
+                await callback_query.answer("❌ Ошибка формата данных")
+                return
+                
+            filter_type = parts[1]
+            filter_id = parts[2]
+            
+            logger.debug(f"Filter type: {filter_type}, id: {filter_id}")
+            
+            # Find selected filter
+            selected_filter = next(
+                (f for f in filters if str(f['id']) == str(filter_id)),
+                None
+            )
+            
+            if not selected_filter:
+                await callback_query.answer("❌ Фильтр не найден")
+                return
+                
+            logger.debug(f"Selected filter: {selected_filter}")
+            
+            # Store current filter and state
+            await state.update_data(
+                current_filter=filter_id,
+                filter_state=filter_state,
+                selected_filter=selected_filter,  # Store selected filter
+                current_parent=None,
+                selected_values=[]
+            )
+            
+            if filter_type == 'status':
+                # Show status selection keyboard with current statuses marked
+                keyboard = InlineKeyboardBuilder()
+                for value, label in selected_filter['choices'].items():
+                    # Add checkmark for selected status
+                    text = f"⚪️ {label}" if value in filter_manager.status_filters else label
+                    keyboard.row(InlineKeyboardButton(
+                        text=text,
+                        callback_data=f"status_{value}"
+                    ))
+                
+                # Add control buttons
+                keyboard.row(
+                    InlineKeyboardButton(
+                        text="✅ Готово",
+                        callback_data="back_to_filters"
+                    ),
+                    InlineKeyboardButton(
+                        text="🔙 Назад",
+                        callback_data="back_to_filters"
+                    )
+                )
+                
+                try:
+                    await callback_query.message.edit_text(
+                        "📊 Выберите статусы (можно несколько):",
+                        reply_markup=keyboard.as_markup()
+                    )
+                except TelegramBadRequest as e:
+                    if "message is not modified" not in str(e):
+                        raise
+                return
+                
+            if filter_type == 'choice':
+                await callback_query.message.edit_text(
+                    "Выберите варианты (можно несколько):",
+                    reply_markup=get_filters_menu(
+                        filters,
+                        current_filter=filter_id,
+                        selected_values=set()
+                    )
+                )
+            elif filter_type == 'date':
+                # Show calendar for date selection
+                now = datetime.now()
+                await callback_query.message.edit_text(
+                    "📅 Выберите начальную дату диапазона:",
+                    reply_markup=get_calendar_keyboard(
+                        now.year,
+                        now.month,
+                        filter_manager.selected_dates
+                    )
+                )
+            elif filter_type == 'question':
+                # Set state for text input
+                await state.set_state(FilterStates.entering_value)
+                await callback_query.message.edit_text(
+                    f"✍️ Введите текст для поиска в поле '{selected_filter['name']}':"
+                )
+            
+            await callback_query.answer()
             
         # Handle clear filters
         if callback_query.data == "clear_filters":
@@ -141,7 +311,7 @@ async def process_filter_callback(callback_query: types.CallbackQuery, state: FS
                 'date_filters': {},
                 'response_filters': {},
                 'selected_dates': [],
-                'status_filter': None
+                'status_filters': set()  # Updated to use status_filters instead of status_filter
             }
             await state.update_data(
                 filter_state=new_state,
@@ -192,106 +362,6 @@ async def process_filter_callback(callback_query: types.CallbackQuery, state: FS
                 )
                 return
                 
-        # Handle filter selection
-        if callback_query.data.startswith("filter_"):
-            logger.debug("Processing filter selection")
-            parts = callback_query.data.split("_", 2)  # Split into 3 parts max
-            
-            if len(parts) != 3:
-                await callback_query.answer("❌ Ошибка формата данных")
-                return
-                
-            filter_type = parts[1]
-            filter_id = parts[2]
-            
-            logger.debug(f"Filter type: {filter_type}, id: {filter_id}")
-            
-            # Find selected filter
-            selected_filter = next(
-                (f for f in filters if str(f['id']) == str(filter_id)),
-                None
-            )
-            
-            if not selected_filter:
-                await callback_query.answer("❌ Фильтр не найден")
-                return
-                
-            logger.debug(f"Selected filter: {selected_filter}")
-            
-            # Store current filter and state
-            await state.update_data(
-                current_filter=filter_id,
-                filter_state=filter_state,
-                selected_filter=selected_filter,  # Store selected filter
-                current_parent=None,
-                selected_values=[]
-            )
-            
-            if filter_type == 'choice':
-                await callback_query.message.edit_text(
-                    "Выберите варианты (можно несколько):",
-                    reply_markup=get_filters_menu(
-                        filters,
-                        current_filter=filter_id,
-                        selected_values=set()
-                    )
-                )
-            elif filter_type == 'date':
-                # Show calendar for date selection
-                now = datetime.now()
-                await callback_query.message.edit_text(
-                    "📅 Выберите начальную дату диапазона:",
-                    reply_markup=get_calendar_keyboard(
-                        now.year,
-                        now.month,
-                        filter_manager.selected_dates
-                    )
-                )
-            elif filter_type == 'status':
-                # Show status selection keyboard
-                keyboard = InlineKeyboardBuilder()
-                for value, label in selected_filter['choices'].items():
-                    keyboard.row(InlineKeyboardButton(
-                        text=label,
-                        callback_data=f"status_{value}"
-                    ))
-                keyboard.row(InlineKeyboardButton(
-                    text="🔙 Назад",
-                    callback_data="back_to_filters"
-                ))
-                await callback_query.message.edit_text(
-                    "📊 Выберите статус:",
-                    reply_markup=keyboard.as_markup()
-                )
-            
-            await callback_query.answer()
-            
-        # Handle back to filters
-        if callback_query.data == "back_to_filters":
-            logger.debug("Processing back to filters")
-            # Clear current filter and selected values
-            await state.update_data(
-                current_filter=None,
-                current_parent=None,
-                selected_values=[]
-            )
-            
-            # Show main filters menu
-            filters = await filter_manager.get_available_filters()
-            active_filters = await filter_manager.get_active_filters()
-            
-            message_text = "📊 Выберите фильтр:"
-            if active_filters:
-                message_text += "\n\n📌 Активные фильтры:\n"
-                for f in active_filters:
-                    message_text += f"• {f['name']}: {f['value']}\n"
-            
-            await callback_query.message.edit_text(
-                message_text,
-                reply_markup=get_filters_menu(filters)
-            )
-            return
-            
         # Handle parent option selection
         if callback_query.data.startswith("parent_"):
             logger.debug("Processing parent option selection")
@@ -459,123 +529,6 @@ async def process_filter_callback(callback_query: types.CallbackQuery, state: FS
                     reply_markup=get_filters_menu(filters)
                 )
                 return
-            
-        # Handle status selection
-        if callback_query.data.startswith("status_"):
-            logger.debug("Processing status selection")
-            status = callback_query.data.split('_', 1)[1]  # Split only once to get full status
-            
-            # Set status filter
-            await filter_manager.set_status_filter(status)
-            
-            # Store updated filter state
-            updated_state = filter_manager.get_state()
-            logger.debug(f"Updating state with: {updated_state}")
-            await state.update_data(filter_state=updated_state)
-            
-            # Show filters menu with active filters
-            filters = await filter_manager.get_available_filters()
-            active_filters = await filter_manager.get_active_filters()
-            
-            message_text = "📊 Выберите фильтр из списка:"
-            if active_filters:
-                message_text += "\n\n📌 Активные фильтры:\n"
-                for f in active_filters:
-                    message_text += f"• {f['name']}: {f['value']}\n"
-                    
-            await callback_query.message.edit_text(
-                message_text,
-                reply_markup=get_filters_menu(filters)
-            )
-            return
-            
-        # Handle filter selection
-        if callback_query.data.startswith("filter_"):
-            logger.debug("Processing filter selection")
-            parts = callback_query.data.split("_", 2)  # Split into 3 parts max
-            
-            if len(parts) != 3:
-                await callback_query.answer("❌ Ошибка формата данных")
-                return
-                
-            filter_type = parts[1]
-            filter_id = parts[2]
-            
-            logger.debug(f"Filter type: {filter_type}, id: {filter_id}")
-            
-            # Find selected filter
-            selected_filter = None
-            for f in filters:
-                if str(f['id']) == str(filter_id):
-                    selected_filter = f
-                    break
-                    
-            if not selected_filter:
-                await callback_query.answer("❌ Фильтр не найден")
-                return
-                
-            logger.debug(f"Selected filter: {selected_filter}")
-                
-            if filter_type == 'date':
-                # Store selected filter before showing calendar
-                await state.update_data(
-                    selected_filter=selected_filter,
-                    filter_state=filter_manager.get_state()  # Save filter state
-                )
-                
-                # Show calendar for date selection
-                now = datetime.now()
-                await callback_query.message.edit_text(
-                    "📅 Выберите начальную дату диапазона:",
-                    reply_markup=get_calendar_keyboard(
-                        now.year,
-                        now.month,
-                        filter_manager.selected_dates
-                    )
-                )
-            elif filter_type == 'status':
-                # Show status selection keyboard
-                choices = selected_filter['choices']
-                keyboard = InlineKeyboardBuilder()
-                for value, label in choices.items():
-                    keyboard.row(InlineKeyboardButton(
-                        text=label,
-                        callback_data=f"status_{value}"
-                    ))
-                keyboard.row(InlineKeyboardButton(
-                    text="🔙 Назад",
-                    callback_data="back_to_filters"
-                ))
-                await callback_query.message.edit_text(
-                    "📊 Выберите статус:",
-                    reply_markup=keyboard.as_markup()
-                )
-            elif filter_type in ['choice', 'question']:  # Handle both choice and question types
-                # Store current filter and show options
-                await state.update_data(
-                    current_filter=filter_id,
-                    current_parent=None,
-                    selected_values=[],
-                    filter_state=filter_manager.get_state()  # Save filter state
-                )
-                
-                if selected_filter['type'] == 'choice':
-                    await callback_query.message.edit_text(
-                        "Выберите варианты (можно несколько):",
-                        reply_markup=get_filters_menu(
-                            filters,
-                            current_filter=filter_id,
-                            selected_values=set()
-                        )
-                    )
-                else:
-                    # Set state for text input
-                    await state.set_state(FilterStates.entering_value)
-                    await callback_query.message.edit_text(
-                        f"✍️ Введите текст для поиска в поле '{selected_filter['name']}':"
-                    )
-            
-            await callback_query.answer()
             
     except Exception as e:
         logger.error(f"Error in filter callback: {e}", exc_info=True)
@@ -929,257 +882,206 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
 
 
 async def process_calendar_callback(callback_query: types.CallbackQuery, state: FSMContext):
-    """Process calendar navigation and date selection."""
+    """Process calendar selection callbacks."""
     try:
-        callback_data = callback_query.data
-        data = await state.get_data()
-        filter_state = data.get('filter_state', {})  # Changed from None to {}
-        selected_filter = data.get('selected_filter')  # Get selected filter from state
+        logger.debug(f"Processing calendar callback: {callback_query.data}")
         
-        logger.debug(f"Processing calendar callback: {callback_data}")
+        data = await state.get_data()
+        filter_state = data.get('filter_state', {})
+        selected_filter = data.get('selected_filter')
+        is_selecting_end_date = data.get('is_selecting_end_date', False)
+        
         logger.debug(f"Filter state from storage: {filter_state}")
         logger.debug(f"Selected filter: {selected_filter}")
+        logger.debug(f"Is selecting end date: {is_selecting_end_date}")
         
-        filter_manager = SurveyFilter(filter_state)
-        
-        if callback_data == "ignore":
-            await callback_query.answer()
+        if not selected_filter:
+            await callback_query.answer("❌ Фильтр не выбран")
             return
             
-        if callback_data == "back_to_filters":
-            # Show filters menu again
+        filter_manager = SurveyFilter(filter_state)
+        field = selected_filter['id']
+        
+        # Handle back to filters
+        if callback_query.data == "back_to_filters":
+            logger.debug("Processing back to filters")
+            # Clear current filter and selected values
+            await state.update_data(
+                current_filter=None,
+                current_parent=None,
+                selected_values=[],
+                selected_filter=None,
+                is_selecting_end_date=False
+            )
+            
+            # Show main filters menu
             filters = await filter_manager.get_available_filters()
             active_filters = await filter_manager.get_active_filters()
-
-            # Format message with active filters
-            message_text = "📊 Выберите фильтр из списка:"
+            
+            message_text = "📊 Выберите фильтр:"
             if active_filters:
                 message_text += "\n\n📌 Активные фильтры:\n"
                 for f in active_filters:
                     message_text += f"• {f['name']}: {f['value']}\n"
-
-            await callback_query.message.edit_text(
-                message_text,
-                reply_markup=get_filters_menu(filters)
-            )
-            await callback_query.answer()
+            
+            try:
+                await callback_query.message.edit_text(
+                    message_text,
+                    reply_markup=get_filters_menu(filters)
+                )
+            except TelegramBadRequest as e:
+                if "message is not modified" not in str(e):
+                    raise
             return
             
-        if callback_data.startswith("select_month-"):
-            # Handle month selection
+        # Handle select month (double click)
+        if callback_query.data.startswith("select_month-"):
+            logger.debug("Processing month selection for entire month")
+            year, month = map(int, callback_query.data.split("-")[1:])
+            
+            # Get first and last day of the month
+            import calendar
+            _, last_day = calendar.monthrange(year, month)
+            start_date = f"{year}-{month:02d}-01"
+            end_date = f"{year}-{month:02d}-{last_day}"
+            
+            # Add date filter for entire month
+            await filter_manager.add_date_filter(field, start_date, end_date)
+            
+            # Store updated filter state
+            updated_state = filter_manager.get_state()
+            logger.debug(f"Updating state with: {updated_state}")
+            await state.update_data(
+                filter_state=updated_state,
+                current_filter=None,
+                selected_filter=None,
+                is_selecting_end_date=False
+            )
+            
+            # Show main filters menu
+            filters = await filter_manager.get_available_filters()
+            active_filters = await filter_manager.get_active_filters()
+            
+            message_text = "📊 Выберите фильтр:"
+            if active_filters:
+                message_text += "\n\n📌 Активные фильтры:\n"
+                for f in active_filters:
+                    message_text += f"• {f['name']}: {f['value']}\n"
+                    
             try:
-                if not selected_filter:
-                    await callback_query.answer("❌ Фильтр не выбран")
-                    return
-                    
-                # Parse year and month from callback data
-                parts = callback_data.split('-')
-                
-                if len(parts) != 3:
-                    await callback_query.answer("❌ Неверный формат данных")
-                    return
-                    
-                _, year, month = parts
-                year = int(year)
-                month = int(month)
-                
-                # Get first and last day of the month
-                import calendar
-                _, last_day = calendar.monthrange(year, month)
-                start_date = f"{year}-{month:02d}-01"
-                end_date = f"{year}-{month:02d}-{last_day}"
-                
-                logger.debug(f"Adding date filter for {selected_filter['id']} from {start_date} to {end_date}")
-                
-                # Clear previous filters
-                filter_manager.date_filters.clear()
-                filter_manager.selected_dates.clear()
-                
-                # Add new date range
-                await filter_manager.add_date_filter(
-                    field=selected_filter['id'],
-                    start_date=start_date,
-                    end_date=end_date
+                await callback_query.message.edit_text(
+                    message_text,
+                    reply_markup=get_filters_menu(filters)
                 )
+            except TelegramBadRequest as e:
+                if "message is not modified" not in str(e):
+                    raise
+            return
+            
+        # Handle month navigation (single click)
+        if callback_query.data.startswith("month-"):
+            logger.debug("Processing month selection")
+            year, month = map(int, callback_query.data.split("-")[1:])
+            
+            # Get current field dates
+            field_dates = [d for d in filter_manager.selected_dates if d.startswith(f"{field}::")]
+            message_text = "📅 Выберите начальную дату:"
+            
+            if field_dates and is_selecting_end_date:
+                start_date = field_dates[0].split("::")[-1]
+                message_text = f"📅 Выберите конечную дату (начальная дата: {start_date}):"
+            
+            # Show calendar for selected month
+            try:
+                await callback_query.message.edit_text(
+                    message_text,
+                    reply_markup=get_calendar_keyboard(
+                        year,
+                        month,
+                        filter_manager.selected_dates
+                    )
+                )
+            except TelegramBadRequest as e:
+                if "message is not modified" not in str(e):
+                    raise
+            return
+            
+        # Handle date selection
+        if callback_query.data.startswith("date_"):
+            logger.debug("Processing date selection")
+            date_str = callback_query.data.split("_")[1]
+            
+            # Check if we already have a start date for this field
+            field_dates = [d for d in filter_manager.selected_dates if d.startswith(f"{field}::")]
+            
+            if not field_dates or not is_selecting_end_date:
+                # First date selection - set as start date
+                await filter_manager.add_date_filter(field, date_str)
                 
                 # Store updated filter state
                 updated_state = filter_manager.get_state()
                 logger.debug(f"Updating state with: {updated_state}")
                 await state.update_data(
                     filter_state=updated_state,
-                    selected_filter=None  # Clear selected filter
+                    is_selecting_end_date=True
                 )
                 
-                # Show filters menu with active filters
+                # Show calendar for end date selection
+                try:
+                    await callback_query.message.edit_text(
+                        f"📅 Выберите конечную дату (начальная дата: {date_str}):",
+                        reply_markup=get_calendar_keyboard(
+                            int(date_str[:4]),  # year
+                            int(date_str[5:7]),  # month
+                            filter_manager.selected_dates
+                        )
+                    )
+                except TelegramBadRequest as e:
+                    if "message is not modified" not in str(e):
+                        raise
+            else:
+                # Second date selection - set as end date
+                start_date = field_dates[0].split("::")[-1]
+                end_date = date_str
+                
+                # Update filter with date range
+                await filter_manager.add_date_filter(field, start_date, end_date)
+                
+                # Store updated filter state and return to filters menu
+                updated_state = filter_manager.get_state()
+                logger.debug(f"Updating state with: {updated_state}")
+                await state.update_data(
+                    filter_state=updated_state,
+                    current_filter=None,
+                    selected_filter=None,
+                    is_selecting_end_date=False
+                )
+                
+                # Show main filters menu
                 filters = await filter_manager.get_available_filters()
                 active_filters = await filter_manager.get_active_filters()
                 
-                message_text = "📊 Выберите фильтр из списка:"
+                message_text = "📊 Выберите фильтр:"
                 if active_filters:
                     message_text += "\n\n📌 Активные фильтры:\n"
                     for f in active_filters:
                         message_text += f"• {f['name']}: {f['value']}\n"
                         
-                await callback_query.message.edit_text(
-                    message_text,
-                    reply_markup=get_filters_menu(filters)
-                )
-                await callback_query.answer("✅ Диапазон дат выбран")
-                
-            except (ValueError, IndexError) as e:
-                logger.error(f"Error processing month selection: {e}", exc_info=True)
-                await callback_query.answer("❌ Ошибка при выборе месяца")
-                return
-                
+                try:
+                    await callback_query.message.edit_text(
+                        message_text,
+                        reply_markup=get_filters_menu(filters)
+                    )
+                except TelegramBadRequest as e:
+                    if "message is not modified" not in str(e):
+                        raise
             return
             
-        if callback_data.startswith("month-"):
-            # Handle month navigation
-            _, year, month = callback_data.split('-')  # Split by hyphen
-            
-            if not selected_filter:
-                await callback_query.answer("❌ Фильтр не выбран")
-                return
-            
-            # Get date range status and selected dates
-            date_range_status = "начальную" if not filter_manager.selected_dates else "конечную"
-            selected_dates = list(filter_manager.selected_dates)
-            
-            message_text = f"📅 Выберите {date_range_status} дату диапазона\nили нажмите на название месяца, чтобы выбрать весь месяц:"
-            if selected_dates:
-                start_date = datetime.strptime(selected_dates[0], "%Y-%m-%d")
-                message_text += f"\n\n📌 Выбранные даты:\n• Начало: {start_date.strftime('%d.%m.%Y')}"
-                if len(selected_dates) > 1:
-                    end_date = datetime.strptime(selected_dates[1], "%Y-%m-%d")
-                    message_text += f"\n• Конец: {end_date.strftime('%d.%m.%Y')}"
-            
-            await callback_query.message.edit_text(
-                message_text,
-                reply_markup=get_calendar_keyboard(
-                    int(year),
-                    int(month),
-                    filter_manager.selected_dates
-                )
-            )
+        # Handle ignore callback
+        if callback_query.data == "ignore":
             await callback_query.answer()
             return
             
-        if callback_data.startswith("date_"):
-            # Handle date selection
-            date_str = callback_data[5:]  # Remove "date_" prefix
-            
-            try:
-                if not selected_filter:
-                    await callback_query.answer("❌ Фильтр не выбран")
-                    return
-                    
-                # Toggle date selection
-                if date_str in filter_manager.selected_dates:
-                    filter_manager.selected_dates.remove(date_str)
-                    # Remove from date filters
-                    field = selected_filter['id']
-                    if f"{field}__gte" in filter_manager.date_filters and filter_manager.date_filters[f"{field}__gte"] == date_str:
-                        del filter_manager.date_filters[f"{field}__gte"]
-                    if f"{field}__lte" in filter_manager.date_filters and filter_manager.date_filters[f"{field}__lte"] == date_str:
-                        del filter_manager.date_filters[f"{field}__lte"]
-                else:
-                    # Add new date filter
-                    if len(filter_manager.selected_dates) == 0:
-                        # First date - set as start date
-                        await filter_manager.add_date_filter(
-                            field=selected_filter['id'],
-                            start_date=date_str
-                        )
-                        
-                        # Show calendar for end date selection
-                        date = datetime.strptime(date_str, "%Y-%m-%d")
-                        message_text = (
-                            "📅 Выберите конечную дату диапазона\n"
-                            "или нажмите на название месяца, чтобы выбрать весь месяц:\n\n"
-                            f"📌 Выбранные даты:\n"
-                            f"• Начало: {date.strftime('%d.%m.%Y')}"
-                        )
-                        await callback_query.message.edit_text(
-                            message_text,
-                            reply_markup=get_calendar_keyboard(
-                                date.year,
-                                date.month,
-                                filter_manager.selected_dates
-                            )
-                        )
-                    elif len(filter_manager.selected_dates) == 1:
-                        # Second date - set as end date if later than start date
-                        start_date = min(list(filter_manager.selected_dates) + [date_str])
-                        end_date = max(list(filter_manager.selected_dates) + [date_str])
-                        
-                        # Clear previous filters
-                        filter_manager.date_filters.clear()
-                        filter_manager.selected_dates.clear()
-                        # Add new range
-                        await filter_manager.add_date_filter(
-                            field=selected_filter['id'],
-                            start_date=start_date,
-                            end_date=end_date
-                        )
-                        
-                        # Store updated filter state
-                        updated_state = filter_manager.get_state()
-                        logger.debug(f"Updating state with: {updated_state}")
-                        await state.update_data(
-                            filter_state=updated_state,
-                            selected_filter=None  # Clear selected filter
-                        )
-                        
-                        # Show filters menu after selecting date range
-                        filters = await filter_manager.get_available_filters()
-                        active_filters = await filter_manager.get_active_filters()
-                        
-                        message_text = "📊 Выберите фильтр из списка:"
-                        if active_filters:
-                            message_text += "\n\n📌 Активные фильтры:\n"
-                            for f in active_filters:
-                                message_text += f"• {f['name']}: {f['value']}\n"
-                                
-                        await callback_query.message.edit_text(
-                            message_text,
-                            reply_markup=get_filters_menu(filters)
-                        )
-                        await callback_query.answer("✅ Диапазон дат выбран")
-                        return
-                    else:
-                        # Reset selection for new range
-                        filter_manager.selected_dates.clear()
-                        filter_manager.date_filters.clear()
-                        await filter_manager.add_date_filter(
-                            field=selected_filter['id'],
-                            start_date=date_str
-                        )
-                        
-                        # Show calendar for end date selection
-                        date = datetime.strptime(date_str, "%Y-%m-%d")
-                        message_text = (
-                            "📅 Выберите конечную дату диапазона\n"
-                            "или нажмите на название месяца, чтобы выбрать весь месяц:\n\n"
-                            f"📌 Выбранные даты:\n"
-                            f"• Начало: {date.strftime('%d.%m.%Y')}"
-                        )
-                        await callback_query.message.edit_text(
-                            message_text,
-                            reply_markup=get_calendar_keyboard(
-                                date.year,
-                                date.month,
-                                filter_manager.selected_dates
-                            )
-                        )
-                
-                # Store updated filter state
-                await state.update_data(filter_state=filter_manager.get_state())
-                
-            except ValueError as e:
-                await callback_query.answer("❌ Ошибка при выборе даты")
-                return
-                
-            await callback_query.answer()
     except Exception as e:
         logger.error(f"Error in calendar callback: {e}", exc_info=True)
         await callback_query.answer("❌ Произошла ошибка")

@@ -54,24 +54,22 @@ class SurveyFilter:
         """Initialize filter manager."""
         logger.debug(f"Initializing SurveyFilter with state: {state}")
         
-        if state is None:
-            state = {
-                'date_filters': {},
-                'response_filters': {},
-                'selected_dates': [],
-                'status_filter': None
-            }
+        self._date_filters = {}
+        self._selected_dates = set()
+        self._response_filters_data = {}
+        self._status_filters = set()
+        self._questions = None  # Initialize _questions attribute
         
-        self.date_filters = state.get('date_filters', {})
-        self.response_filters = {}  # Will be populated from response_filters_data
-        self._response_filters_data = state.get('response_filters', {})  # Store IDs instead of objects
-        self.selected_dates = set(state.get('selected_dates', []))  # Store selected dates
-        self._questions = None  # Lazy load questions
-        self._status_filter = state.get('status_filter')  # Store status filter
+        if state:
+            self._date_filters = state.get('date_filters', {})
+            self._selected_dates = set(state.get('selected_dates', []))
+            self._response_filters_data = state.get('response_filters', {})
+            self._status_filters = set(state.get('status_filters', set()))
         
-        logger.debug(f"Initialized with date_filters: {self.date_filters}")
-        logger.debug(f"Initialized with selected_dates: {self.selected_dates}")
+        logger.debug(f"Initialized with date_filters: {self._date_filters}")
+        logger.debug(f"Initialized with selected_dates: {self._selected_dates}")
         logger.debug(f"Initialized with response_filters_data: {self._response_filters_data}")
+        logger.debug(f"Initialized with status_filters: {self._status_filters}")
         
     @property
     def questions(self):
@@ -80,55 +78,63 @@ class SurveyFilter:
             self._questions = Question.objects.select_related('field_type').all()
         return self._questions
         
+    @property
+    def status_filters(self) -> set:
+        """Get status filters."""
+        return self._status_filters
+
+    @status_filters.setter
+    def status_filters(self, value: set):
+        """Set status filters."""
+        self._status_filters = value
+
     def get_state(self) -> Dict[str, Any]:
-        """Get serializable state of the filter manager."""
-        state = {
-            'date_filters': self.date_filters,
+        """Get current filter state as dict."""
+        return {
+            'date_filters': self._date_filters,
             'response_filters': self._response_filters_data,
-            'selected_dates': list(self.selected_dates),  # Convert set to list for JSON serialization
-            'status_filter': self._status_filter
+            'selected_dates': list(self._selected_dates),
+            'status_filters': list(self._status_filters)  # Convert set to list for serialization
         }
-        logger.debug(f"Getting state: {state}")
-        return state
         
     @sync_to_async
     def get_active_filters(self) -> List[Dict[str, Any]]:
         """Get list of active filters."""
         active_filters = []
         
-        # Add status filter if set
-        if hasattr(self, '_status_filter') and self._status_filter:
-            status_display = dict(SurveySubmission.Status.choices)[self._status_filter]
+        # Add status filters if set
+        if self._status_filters:
+            status_choices = dict(SurveySubmission.Status.choices)
+            status_values = [str(status_choices[status]) for status in self._status_filters]
             active_filters.append({
                 'name': 'Статус',
-                'value': status_display
+                'value': ', '.join(status_values)
             })
         
         # Add date filters
-        date_ranges = {}
-        for field, value in self.date_filters.items():
-            base_field = field[:-5]  # Remove __gte or __lte
-            if base_field not in date_ranges:
-                date_ranges[base_field] = {'name': 'Дата создания' if base_field == 'created_at' else 'Дата обновления'}
+        date_fields = {}
+        for key, value in self._date_filters.items():
+            field = key.split('__')[0]
+            suffix = key.split('__')[1]
             
-            if field.endswith('__gte'):
-                date_ranges[base_field]['start'] = value
+            if field not in date_fields:
+                date_fields[field] = {}
+            date_fields[field][suffix] = value
+            
+        for field, dates in date_fields.items():
+            filter_name = "Дата создания" if field == "created_at" else "Дата обновления"
+            if 'gte' in dates and 'lte' in dates:
+                filter_value = f"от {dates['gte']} до {dates['lte']}"
+            elif 'gte' in dates:
+                filter_value = f"от {dates['gte']}"
+            elif 'lte' in dates:
+                filter_value = f"до {dates['lte']}"
             else:
-                date_ranges[base_field]['end'] = value
-                
-        # Format date ranges
-        for field_data in date_ranges.values():
-            value = ""
-            if 'start' in field_data:
-                start_date = datetime.strptime(field_data['start'], "%Y-%m-%d")
-                value = f"от {start_date.strftime('%d.%m.%Y')}"
-            if 'end' in field_data:
-                end_date = datetime.strptime(field_data['end'], "%Y-%m-%d")
-                value += f"{' ' if value else ''}до {end_date.strftime('%d.%m.%Y')}"
+                continue
                 
             active_filters.append({
-                'name': field_data['name'],
-                'value': value
+                'name': filter_name,
+                'value': filter_value
             })
             
         # Add response filters
@@ -147,30 +153,39 @@ class SurveyFilter:
         
     @sync_to_async
     def add_date_filter(self, field: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> None:
-        """Add date filter."""
+        """Add date filter for specified field."""
         logger.debug(f"Adding date filter - field: {field}, start: {start_date}, end: {end_date}")
-        logger.debug(f"Before adding - date_filters: {self.date_filters}")
-        logger.debug(f"Before adding - selected_dates: {self.selected_dates}")
+        logger.debug(f"Before adding - date_filters: {self._date_filters}")
+        logger.debug(f"Before adding - selected_dates: {self._selected_dates}")
         
-        if not any([start_date, end_date]):
-            return
-            
-        # Clear existing date filters for this field
-        field_filters = [f"{field}__gte", f"{field}__lte"]
-        for key in field_filters:
-            if key in self.date_filters:
-                del self.date_filters[key]
-                
+        # Clear previous filters for this field
+        self._date_filters = {
+            key: value for key, value in self._date_filters.items() 
+            if not key.startswith(f"{field}__")
+        }
+        
+        # Clear previous selected dates for this field
+        self._selected_dates = {
+            date for date in self._selected_dates 
+            if not date.startswith(f"{field}::")
+        }
+        
+        # Add new filters
         if start_date:
-            self.date_filters[f"{field}__gte"] = start_date
-            self.selected_dates.add(start_date)
-            
+            self._date_filters[f"{field}__gte"] = start_date
+            self._selected_dates.add(f"{field}::{start_date}")
+        
         if end_date:
-            self.date_filters[f"{field}__lte"] = end_date
-            self.selected_dates.add(end_date)
-            
-        logger.debug(f"After adding - date_filters: {self.date_filters}")
-        logger.debug(f"After adding - selected_dates: {self.selected_dates}")
+            self._date_filters[f"{field}__lte"] = end_date
+            self._selected_dates.add(f"{field}::{end_date}")
+        
+        logger.debug(f"After adding - date_filters: {self._date_filters}")
+        logger.debug(f"After adding - selected_dates: {self._selected_dates}")
+        
+    @property
+    def selected_dates(self) -> set:
+        """Get selected dates with field prefixes."""
+        return self._selected_dates
         
     @sync_to_async
     def add_response_filter(self, question_id: int, value: str) -> None:
@@ -205,20 +220,20 @@ class SurveyFilter:
     def get_filtered_submissions(self) -> QuerySet:
         """Get submissions filtered by all active filters."""
         logger.debug("Getting filtered submissions")
-        logger.debug(f"Date filters: {self.date_filters}")
+        logger.debug(f"Date filters: {self._date_filters}")
         logger.debug(f"Response filters: {self._response_filters_data}")
-        logger.debug(f"Status filter: {self._status_filter}")
+        logger.debug(f"Status filters: {self._status_filters}")
         
         # Start with all submissions
         queryset = SurveySubmission.objects.all()
         
         # Apply date filters if present
-        if self.date_filters:
-            queryset = queryset.filter(**self.date_filters)
+        if self._date_filters:
+            queryset = queryset.filter(**self._date_filters)
             
-        # Apply status filter if present
-        if self._status_filter:
-            queryset = queryset.filter(status=self._status_filter)
+        # Apply status filters if present
+        if self._status_filters:
+            queryset = queryset.filter(status__in=self._status_filters)
             
         # Apply response filters
         for question_id, filters in self._response_filters_data.items():
@@ -312,9 +327,19 @@ class SurveyFilter:
         return filters
 
     @sync_to_async
-    def set_status_filter(self, status: str) -> None:
-        """Set status filter."""
-        self._status_filter = status 
+    def toggle_status_filter(self, status: str) -> None:
+        """Toggle status in filters set."""
+        if status in self._status_filters:
+            self._status_filters.remove(status)
+        else:
+            self._status_filters.add(status)
+        logger.debug(f"Toggled status {status}, current status filters: {self._status_filters}")
+
+    @sync_to_async
+    def clear_status_filters(self) -> None:
+        """Clear all status filters."""
+        self._status_filters.clear()
+        logger.debug("Cleared all status filters")
 
     async def add_option_filter(self, question_id: int, option_id: str) -> None:
         """Add option filter for a question."""
