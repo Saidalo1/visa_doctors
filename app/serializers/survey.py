@@ -105,7 +105,7 @@ class SurveySubmissionSerializer(ModelSerializer):
     class Meta:
         """Metaclass."""
         model = SurveySubmission
-        fields = 'id', 'status', 'responses', 'created_at', 'updated_at'
+        fields = 'id', 'status', 'source', 'responses', 'created_at', 'updated_at'
     
     def validate_responses(self, responses):
         """Validate that all required questions have responses."""

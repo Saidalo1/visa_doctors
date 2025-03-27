@@ -138,11 +138,33 @@ class SurveySubmission(BaseModel):
         COMPLETED = 'completed', _('Completed')
         REJECTED = 'rejected', _('Rejected')
 
+    class Source(TextChoices):
+        """Source choices for survey submission."""
+        WEBSITE = 'website', _('Website')
+        FACEBOOK = 'facebook', _('Facebook')
+        INSTAGRAM = 'instagram', _('Instagram')
+        TELEGRAM = 'telegram', _('Telegram')
+        WHATSAPP = 'whatsapp', _('WhatsApp')
+        VK = 'vk', _('VKontakte')
+        YOUTUBE = 'youtube', _('YouTube')
+        LINKEDIN = 'linkedin', _('LinkedIn')
+        TWITTER = 'twitter', _('Twitter')
+        TIKTOK = 'tiktok', _('TikTok')
+        OTHER = 'other', _('Other')
+
     status = CharField(
         _('Status'),
         max_length=20,
         choices=Status.choices,
         default=Status.NEW
+    )
+
+    source = CharField(
+        _('Source'),
+        max_length=20,
+        choices=Source.choices,
+        default=Source.WEBSITE,
+        help_text=_('Where did the user come from?')
     )
 
     class Meta:
