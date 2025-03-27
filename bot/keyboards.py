@@ -217,27 +217,28 @@ def get_results_keyboard(page: int, total_pages: int) -> InlineKeyboardMarkup:
     """Create results navigation keyboard."""
     builder = InlineKeyboardBuilder()
     
-    # Add navigation row
-    nav_buttons = []
-    
-    if page > 1:
+    # Add navigation row if there are multiple pages
+    if total_pages > 1:
+        nav_buttons = []
+        
+        if page > 1:
+            nav_buttons.append(InlineKeyboardButton(
+                text="⬅️",
+                callback_data=f"page_{page - 1}"
+            ))
+            
         nav_buttons.append(InlineKeyboardButton(
-            text="⬅️",
-            callback_data=f"page_{page - 1}"
+            text=f"{page}/{total_pages}",
+            callback_data="ignore"
         ))
         
-    nav_buttons.append(InlineKeyboardButton(
-        text=f"📄 {page}/{total_pages}",
-        callback_data="ignore"
-    ))
-    
-    if page < total_pages:
-        nav_buttons.append(InlineKeyboardButton(
-            text="➡️",
-            callback_data=f"page_{page + 1}"
-        ))
-        
-    builder.row(*nav_buttons)
+        if page < total_pages:
+            nav_buttons.append(InlineKeyboardButton(
+                text="➡️",
+                callback_data=f"page_{page + 1}"
+            ))
+            
+        builder.row(*nav_buttons)
     
     # Add control buttons
     builder.row(

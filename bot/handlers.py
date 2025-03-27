@@ -599,12 +599,15 @@ def convert_queryset_to_list(queryset):
 async def show_results(message: types.Message | types.Message, state: FSMContext, edit_message: bool = False):
     """Show filtered results with pagination."""
     try:
+        logger.debug("Starting show_results")
         data = await state.get_data()
         filter_state = data.get('filter_state', {})
         filter_manager = SurveyFilter(filter_state)
         page = data.get('current_page', 1)
+        logger.debug(f"Current page: {page}")
 
         # Get filtered submissions
+        logger.debug("Getting filtered submissions")
         submissions = await filter_manager.get_filtered_submissions()
         
         # Check if submissions are empty
@@ -640,6 +643,7 @@ async def show_results(message: types.Message | types.Message, state: FSMContext
         submissions_list = await convert_queryset_to_list(submissions)
         total = len(submissions_list)
         total_pages = (total + RESULTS_PER_PAGE - 1) // RESULTS_PER_PAGE
+        logger.debug(f"Total submissions: {total}, Total pages: {total_pages}")
 
         # Get paginated results
         start = (page - 1) * RESULTS_PER_PAGE
@@ -679,47 +683,31 @@ async def show_results(message: types.Message | types.Message, state: FSMContext
         
         message_text += "\n" + "\n---\n".join(results)
 
-        # Create keyboard with pagination and export buttons
-        keyboard = InlineKeyboardBuilder()
-        
-        # Add pagination buttons
-        if total_pages > 1:
-            row = []
-            if page > 1:
-                row.append(InlineKeyboardButton(text="◀️", callback_data=f"page_{page-1}"))
-            row.append(InlineKeyboardButton(text=f"{page}/{total_pages}", callback_data="ignore"))
-            if page < total_pages:
-                row.append(InlineKeyboardButton(text="▶️", callback_data=f"page_{page+1}"))
-            keyboard.row(*row)
-        
-        # Add control buttons
-        keyboard.row(
-            InlineKeyboardButton(text="🔍 Фильтры", callback_data="back_to_filters"),
-            InlineKeyboardButton(text="🔄 Сбросить", callback_data="clear_filters")
-        )
-        keyboard.row(InlineKeyboardButton(
-            text="📥 Экспорт в Excel",
-            callback_data="export_excel"
-        ))
+        # Use get_results_keyboard for pagination
+        keyboard = get_results_keyboard(page, total_pages)
+        logger.debug(f"Created keyboard for page {page}/{total_pages}")
 
         # Send or edit message
         try:
             if edit_message and isinstance(message, types.Message):
+                logger.debug("Editing existing message")
                 await message.edit_text(
                     message_text,
-                    reply_markup=keyboard.as_markup()
+                    reply_markup=keyboard
                 )
             else:
+                logger.debug("Sending new message")
                 await message.answer(
                     message_text,
-                    reply_markup=keyboard.as_markup()
+                    reply_markup=keyboard
                 )
         except TelegramBadRequest as e:
+            logger.error(f"Telegram error: {str(e)}")
             if "message is not modified" not in str(e):
                 if edit_message and isinstance(message, types.Message):
                     await message.answer(
                         message_text,
-                        reply_markup=keyboard.as_markup()
+                        reply_markup=keyboard
                     )
                     try:
                         await message.delete()
@@ -728,7 +716,7 @@ async def show_results(message: types.Message | types.Message, state: FSMContext
                 else:
                     await message.answer(
                         message_text,
-                        reply_markup=keyboard.as_markup()
+                        reply_markup=keyboard
                     )
             
     except Exception as e:
@@ -770,37 +758,49 @@ def perform_export(queryset):
 async def export_results(callback_query: types.CallbackQuery, state: FSMContext):
     """Export filtered results to Excel."""
     try:
+        logger.debug("Starting export process")
         data = await state.get_data()
         filter_state = data.get('filter_state', {})
         filter_manager = SurveyFilter(filter_state)
 
         # Get filtered queryset
+        logger.debug("Getting filtered submissions for export")
         queryset = await filter_manager.get_filtered_submissions()
 
         if queryset:
             # Show processing message
-            await callback_query.message.answer("⏳ Подготовка файла экспорта...")
+            await callback_query.answer("⏳ Подготовка файла...")
+            logger.debug("Starting file preparation")
             
             # Perform export in synchronous context
-            temp_filename = await perform_export(queryset)
-
             try:
+                temp_filename = await perform_export(queryset)
+                logger.debug(f"File exported successfully to {temp_filename}")
+
                 # Send file
+                logger.debug("Sending file to user")
                 await callback_query.message.answer_document(
                     FSInputFile(temp_filename, filename="export.xlsx"),
                     caption="✅ Экспорт выполнен успешно"
                 )
+                logger.debug("File sent successfully")
+            except Exception as e:
+                logger.error(f"Error during export: {e}", exc_info=True)
+                await callback_query.message.answer("❌ Ошибка при экспорте данных")
             finally:
                 # Delete temporary file
                 try:
-                    os.unlink(temp_filename)
-                except:
-                    pass
+                    if 'temp_filename' in locals():
+                        os.unlink(temp_filename)
+                        logger.debug("Temporary file deleted")
+                except Exception as e:
+                    logger.error(f"Error deleting temporary file: {e}")
         else:
+            logger.debug("No data to export")
             await callback_query.answer("❌ Нет данных для экспорта")
 
     except Exception as e:
-        logger.error(f"Export error: {e}")
+        logger.error(f"Export error: {e}", exc_info=True)
         await callback_query.message.answer("❌ Ошибка при экспорте данных")
 
 
@@ -846,7 +846,31 @@ async def clear_filters(message: types.Message | types.CallbackQuery, state: FSM
 async def process_callback(callback_query: types.CallbackQuery, state: FSMContext):
     """Process callback queries from inline keyboards."""
     try:
-        if callback_query.data.startswith('filter_'):
+        logger.debug(f"Processing callback data: {callback_query.data}")
+        
+        # Handle pagination first
+        if callback_query.data.startswith('page_'):
+            logger.debug("Processing pagination callback")
+            try:
+                page = int(callback_query.data.split('_')[1])
+                logger.debug(f"Switching to page {page}")
+                await state.update_data(current_page=page)
+                await show_results(callback_query.message, state, edit_message=True)
+                return
+            except ValueError as e:
+                logger.error(f"Error parsing page number: {e}")
+                await callback_query.answer("❌ Ошибка при переключении страницы")
+                return
+            
+        # Handle export next
+        elif callback_query.data == 'export_excel':
+            logger.debug("Processing export callback")
+            await callback_query.answer("⏳ Подготовка файла...")
+            await export_results(callback_query, state)
+            return
+            
+        # Handle other callbacks
+        elif callback_query.data.startswith('filter_'):
             await process_filter_callback(callback_query, state)
             
         elif callback_query.data.startswith('select_month-'):
@@ -858,38 +882,22 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
         elif callback_query.data.startswith('status_'):
             await process_filter_callback(callback_query, state)
             
-        elif callback_query.data.startswith('page_'):
-            # Handle pagination
-            page = int(callback_query.data.split('_')[1])
-            await state.update_data(current_page=page)
-            await show_results(callback_query.message, state, edit_message=True)
-            
-        elif callback_query.data == 'export_excel':
-            # Handle export
-            await export_results(callback_query, state)
-            
         elif callback_query.data == 'clear_filters':
-            # Handle clear filters
             await clear_filters(callback_query, state)
             
         elif callback_query.data == 'show_results':
-            # Handle show results
             await show_results(callback_query.message, state, edit_message=True)
             
         elif callback_query.data == 'back_to_filters':
-            # Handle back to filters
             await process_filter_callback(callback_query, state)
             
         elif callback_query.data.startswith('parent_'):
-            # Handle parent option selection
             await process_filter_callback(callback_query, state)
             
         elif callback_query.data.startswith('option_'):
-            # Handle option selection
             await process_filter_callback(callback_query, state)
             
         elif callback_query.data == 'apply_filter':
-            # Handle apply filter
             await process_filter_callback(callback_query, state)
 
         # Don't answer callback if it's already been answered

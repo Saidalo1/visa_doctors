@@ -18,7 +18,8 @@ from bot.handlers import (
     show_results,
     clear_filters,
     process_filter_callback,
-    process_calendar_callback
+    process_calendar_callback,
+    process_callback
 )
 from bot.states import FilterStates
 
@@ -88,7 +89,13 @@ class VisaDoctorsBot:
         self.dp.message.register(cmd_start, Command('start'), F.chat.type == ChatType.PRIVATE)
         self.dp.message.register(process_value_input, FilterStates.entering_value, F.chat.type == ChatType.PRIVATE)
         
-        # Register callback handlers with specific filters
+        # Регистрируем общий обработчик колбэков для пагинации и экспорта
+        self.dp.callback_query.register(
+            process_callback,
+            F.message.chat.type == ChatType.PRIVATE
+        )
+        
+        # Register specialized callback handlers with specific filters
         self.dp.callback_query.register(
             process_filter_callback,
             F.message.chat.type == ChatType.PRIVATE,
