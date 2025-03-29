@@ -22,6 +22,7 @@ from bot.handlers import (
     process_callback
 )
 from bot.states import FilterStates
+from app.utils.telegram import handle_status_callback
 
 # Configure root logger
 root_logger = logging.getLogger()
@@ -112,6 +113,15 @@ class VisaDoctorsBot:
                 c.data.startswith(('date_', 'month-', 'select_month-')) or 
                 c.data == 'back_to_filters'
             )
+        )
+
+        # Register handler for submission status updates
+        self.dp.callback_query.register(
+            handle_status_callback,
+            lambda c: c.data and c.data.startswith((
+                'show_status:', 'select_status:', 
+                'apply_status:', 'back_to_main:'
+            ))
         )
 
     async def start(self) -> None:
