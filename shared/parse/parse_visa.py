@@ -156,7 +156,7 @@ class KoreaVisaAPI:
             raise APIException(_("Failed to initialize session"))
 
         search_data = self._prepare_search_data(params)
-        time.sleep(random.uniform(1, 3))
+        # time.sleep(random.uniform(1, 3))
 
         response = self.session.post(
             f"{self.base_url}/openPage.do",
