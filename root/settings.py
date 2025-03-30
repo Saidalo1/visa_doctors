@@ -1,4 +1,3 @@
-import os
 from os.path import join
 from pathlib import Path
 
@@ -661,3 +660,6 @@ BASE_URL = env.str('BASE_URL', default='http://localhost:8000')
 
 # For jazzmin
 X_FRAME_OPTIONS = 'SAMEORIGIN'
+
+# VISA Korea API
+KOREA_VISA_API_URL = env.url('KOREA_VISA_API_URL', default='https://visa.visa-visa.fr').geturl()
