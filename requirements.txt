@@ -62,4 +62,4 @@ aiogram==3.3.0
 
 # Parsing tools
 beautifulsoup4==4.13.3
-fake-useragent==2.1.0
+lxml==5.1.0

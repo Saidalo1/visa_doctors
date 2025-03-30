@@ -1,14 +1,15 @@
 """Visa status parser for Korea visa."""
 import random
+import re
 import time
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Optional, Tuple
 
 import requests
-from bs4 import BeautifulSoup
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
+from lxml import html
 from rest_framework.exceptions import APIException
 
 
@@ -21,6 +22,19 @@ class VisaSearchParams:
     application_type: str = "gb03"  # Default search through embassy
 
 
+# Pre-compile regex patterns for better performance
+ERROR_PATTERN = re.compile(r'ERROR_TYPE')
+
+# Status translations as a constant
+STATUS_TRANSLATIONS = {
+    '허가': 'Approved',
+    '상세정보접수': 'Application Received',
+    '불허': 'Rejected',
+    '심사중': 'Under Review',
+    '접수': 'Application Received'
+}
+
+
 class KoreaVisaAPI:
     def __init__(self):
         self.base_url = settings.KOREA_VISA_API_URL
@@ -28,22 +42,21 @@ class KoreaVisaAPI:
         self._update_headers()
 
     @staticmethod
-    def _get_random_language_header():
+    def _get_random_language_header() -> str:
         """Generate random language header"""
-        languages = [
+        return random.choice([
             "en-US,en;q=0.9",
             "en-GB,en;q=0.9",
             "en-CA,en;q=0.9",
             "ko-KR,ko;q=0.9,en-US;q=0.8",
             "ja-JP,ja;q=0.9,en-US;q=0.8",
             "zh-CN,zh;q=0.9,en-US;q=0.8"
-        ]
-        return random.choice(languages)
+        ])
 
     @staticmethod
-    def _get_user_agent():
+    def _get_user_agent() -> str:
         """Get random user agent from predefined list"""
-        user_agents = [
+        return random.choice([
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0",
@@ -53,10 +66,9 @@ class KoreaVisaAPI:
             "Mozilla/5.0 (iPhone; CPU iPhone OS 17_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Mobile/15E148 Safari/604.1",
             "Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.6261.64 Mobile Safari/537.36",
             "Mozilla/5.0 (iPad; CPU OS 17_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Mobile/15E148 Safari/604.1"
-        ]
-        return random.choice(user_agents)
+        ])
 
-    def _update_headers(self):
+    def _update_headers(self) -> None:
         """Update headers with random values"""
         self.session.headers.update({
             "User-Agent": self._get_user_agent(),
@@ -74,15 +86,12 @@ class KoreaVisaAPI:
 
     def _initialize_session(self) -> bool:
         """Initialize session"""
-        # try:
         response = self.session.get(
             f"{self.base_url}/openPage.do",
             params={"MENU_ID": "10301"}
         )
         response.raise_for_status()
         return True
-        # except requests.RequestException as e:
-        #     raise APIException(_("Failed to initialize session: {}").format(str(e)))
 
     @staticmethod
     def _prepare_search_data(params: VisaSearchParams) -> Dict[str, str]:
@@ -102,33 +111,43 @@ class KoreaVisaAPI:
         }
 
     @staticmethod
-    def _get_div_text(soup: BeautifulSoup, div_id: str) -> str:
-        """Get text from div by ID"""
-        div = soup.find('div', id=div_id)
-        return div.get_text(strip=True) if div else ""
+    def _get_element_text(tree: html.HtmlElement, element_id: str) -> str:
+        """Get text from element by ID using XPath (faster than CSS selectors)"""
+        elements = tree.xpath(f'//*[@id="{element_id}"]')
+        return elements[0].text_content().strip() if elements else ""
 
     @staticmethod
-    def _get_status_and_date(soup: BeautifulSoup) -> tuple[str, str]:
-        """Get status and review date from PROC_STS_CDNM_1"""
-        status_div = soup.find('div', id='PROC_STS_CDNM_1')
-        if not status_div:
+    def _get_status_and_date(tree: html.HtmlElement) -> Tuple[str, str]:
+        """Get status and review date using XPath"""
+        elements = tree.xpath('//*[@id="PROC_STS_CDNM_1"]')
+        if not elements:
             return "", ""
 
-        # Get all text nodes, filtering out comments and empty strings
-        text_nodes = [text for text in status_div.stripped_strings]
-
-        if not text_nodes:
-            return "", ""
-
-        # First node is status
-        status = text_nodes[0]
-
-        # Last node might be date in parentheses
-        date = ""
-        if len(text_nodes) > 1:
-            date = text_nodes[-1]
-
+        text = elements[0].text_content().strip()
+        parts = text.split('(', 1)
+        status = parts[0].strip()
+        date = parts[1].rstrip(')').strip() if len(parts) > 1 else ""
         return status, date
+
+    @staticmethod
+    def _format_date(date_str: str) -> Optional[str]:
+        """Format date string to YYYY-MM-DD format"""
+        if not date_str:
+            return None
+
+        # Remove any dots and clean the string
+        date_str = date_str.strip('.')
+        
+        try:
+            if '.' in date_str:
+                date_obj = datetime.strptime(date_str, '%Y.%m.%d')
+            elif '-' in date_str:
+                date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+            else:
+                date_obj = datetime.strptime(date_str, '%Y%m%d')
+            return date_obj.strftime('%Y-%m-%d')
+        except (ValueError, AttributeError):
+            return None
 
     def check_visa_status(self, params: VisaSearchParams) -> Dict[str, Any]:
         """Check visa status"""
@@ -147,92 +166,52 @@ class KoreaVisaAPI:
         )
         response.raise_for_status()
 
-        if "ERROR_TYPE" in response.text:
+        if ERROR_PATTERN.search(response.text):
             raise APIException(_("Server returned error response"))
 
-        soup = BeautifulSoup(response.text, 'html.parser')
+        tree = html.fromstring(response.text)
+        status, review_date = self._get_status_and_date(tree)
+        
+        application_date = self._get_element_text(tree, "APPL_DTM") or self._get_element_text(tree, "RECPT_YMD")
+        formatted_date = self._format_date(application_date) if application_date else None
 
-        # Get application date
-        application_date = self._get_div_text(soup, "APPL_DTM")
-
-        # Get status and review date separately
-        status, review_date = self._get_status_and_date(soup)
-
-        # Extract all available data with proper element IDs
-        visa_data = {
-            "application_number": application_date,
-            "application_date": self._get_div_text(soup, "APPL_DTM"),
-            "entry_purpose": self._get_div_text(soup, "ENTRY_PURPOSE"),
-            "progress_status": status,  # Use status without date
-            "review_date": review_date.strip('()'),  # Add review date as separate field
-            "visa_type": self._get_div_text(soup, "VISA_KIND_CD"),
-            "stay_qualification": self._get_div_text(soup, "SOJ_QUAL_NM"),
-            "expiry_date": self._get_div_text(soup, "VISA_EXPR_YMD")
-        }
-
-        # If application_date is empty, try alternative field
-        if not application_date:
-            application_date = self._get_div_text(soup, "RECPT_YMD")
-
-        if application_date:
-            try:
-                date_obj = datetime.strptime(application_date, '%Y%m%d')
-                application_date = date_obj.strftime('%Y-%m-%d')
-            except (ValueError, AttributeError):
-                pass
-            finally:
-                visa_data["application_date"] = application_date
-
-        # Check for rejection reason
-        rejection_row = soup.find('tr', id='INTNET_OPEN_REJ_RSN_CD')
-        if rejection_row and rejection_row.get('style') != 'display:none;':
-            visa_data['rejection_reason'] = rejection_row.find('td').get_text(strip=True)
-
-        # Add status translation
-        status_translations = {
-            '허가': 'Approved',
-            '상세정보접수': 'Application Received',
-            '불허': 'Rejected',
-            '심사중': 'Under Review',
-            '접수': 'Application Received'
-        }
-
-        # Get progress status from correct element
-        progress_status = visa_data['progress_status']
-        if not progress_status:
-            # Try alternative elements
-            progress_div = soup.find('div', id='PROC_STS_CDNM_1')
-            if progress_div:
-                # Get all text nodes and join them
-                progress_status = ''.join(node.strip() for node in progress_div.stripped_strings)
-                visa_data['progress_status'] = progress_status
-
-        if progress_status in status_translations:
-            visa_data['status_en'] = status_translations[progress_status]
-
-        # Clean empty values and format dates
-        visa_data = {k: v.strip('().') for k, v in visa_data.items() if v}
-
-        # Convert date format if exists (from YYYY.MM.DD. to YYYY-MM-DD)
-        if 'application_date' in visa_data:
-            try:
-                date_str = visa_data['application_date'].strip('.')
-                date_obj = datetime.strptime(date_str, '%Y.%m.%d')
-                visa_data['application_date'] = date_obj.strftime('%Y-%m-%d')
-            except (ValueError, AttributeError):
-                pass
-
-        # For status "접수" (Application Received) return only necessary fields
-        if progress_status == '접수':
+        # For status "접수" (Application Received) return minimal data
+        if status == '접수':
             return {
                 "status": "success",
                 "visa_data": {
-                    "entry_purpose": visa_data.get('entry_purpose', ''),
-                    "progress_status": progress_status,
-                    "status_en": visa_data.get('status_en', ''),
-                    "application_date": visa_data.get('application_date', '')
+                    "entry_purpose": self._get_element_text(tree, "ENTRY_PURPOSE"),
+                    "progress_status": status,
+                    "status_en": STATUS_TRANSLATIONS.get(status, ''),
+                    "application_date": formatted_date
                 }
             }
+
+        # For other statuses, get full data
+        expiry_date = self._get_element_text(tree, "VISA_EXPR_YMD")
+        expiry_date = self._format_date(expiry_date) if expiry_date else None
+
+        review_date = review_date.strip('()') if review_date else None
+        review_date = self._format_date(review_date) if review_date else None
+
+        visa_data = {
+            "application_date": formatted_date,
+            "entry_purpose": self._get_element_text(tree, "ENTRY_PURPOSE"),
+            "progress_status": status,
+            "status_en": STATUS_TRANSLATIONS.get(status, ''),
+            "visa_type": self._get_element_text(tree, "VISA_KIND_CD"),
+            "stay_qualification": self._get_element_text(tree, "SOJ_QUAL_NM"),
+            "expiry_date": expiry_date,
+            "review_date": review_date
+        }
+
+        # Check for rejection reason
+        rejection_elements = tree.xpath('//tr[@id="INTNET_OPEN_REJ_RSN_CD" and not(contains(@style, "display:none"))]//td')
+        if rejection_elements:
+            visa_data['rejection_reason'] = rejection_elements[0].text_content().strip()
+
+        # Remove empty values
+        visa_data = {k: v for k, v in visa_data.items() if v}
 
         return {
             "status": "success",
