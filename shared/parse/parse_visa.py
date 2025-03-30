@@ -1,10 +1,9 @@
 """Visa status parser for Korea visa."""
 import random
 import re
-import time
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional
 
 import requests
 from django.conf import settings
@@ -22,7 +21,7 @@ class VisaSearchParams:
     application_type: str = "gb03"  # Default search through embassy
 
 
-# Pre-compile regex patterns for better performance
+# Pre-compile regex pattern
 ERROR_PATTERN = re.compile(r'ERROR_TYPE')
 
 # Status translations as a constant
@@ -84,14 +83,13 @@ class KoreaVisaAPI:
             "Cache-Control": "no-cache"
         })
 
-    def _initialize_session(self) -> bool:
+    def _initialize_session(self) -> None:
         """Initialize session"""
         response = self.session.get(
             f"{self.base_url}/openPage.do",
             params={"MENU_ID": "10301"}
         )
         response.raise_for_status()
-        return True
 
     @staticmethod
     def _prepare_search_data(params: VisaSearchParams) -> Dict[str, str]:
@@ -111,33 +109,12 @@ class KoreaVisaAPI:
         }
 
     @staticmethod
-    def _get_element_text(tree: html.HtmlElement, element_id: str) -> str:
-        """Get text from element by ID using XPath (faster than CSS selectors)"""
-        elements = tree.xpath(f'//*[@id="{element_id}"]')
-        return elements[0].text_content().strip() if elements else ""
-
-    @staticmethod
-    def _get_status_and_date(tree: html.HtmlElement) -> Tuple[str, str]:
-        """Get status and review date using XPath"""
-        elements = tree.xpath('//*[@id="PROC_STS_CDNM_1"]')
-        if not elements:
-            return "", ""
-
-        text = elements[0].text_content().strip()
-        parts = text.split('(', 1)
-        status = parts[0].strip()
-        date = parts[1].rstrip(')').strip() if len(parts) > 1 else ""
-        return status, date
-
-    @staticmethod
     def _format_date(date_str: str) -> Optional[str]:
         """Format date string to YYYY-MM-DD format"""
         if not date_str:
             return None
 
-        # Remove any dots and clean the string
         date_str = date_str.strip('.')
-        
         try:
             if '.' in date_str:
                 date_obj = datetime.strptime(date_str, '%Y.%m.%d')
@@ -152,12 +129,9 @@ class KoreaVisaAPI:
     def check_visa_status(self, params: VisaSearchParams) -> Dict[str, Any]:
         """Check visa status"""
         self._update_headers()
-        if not self._initialize_session():
-            raise APIException(_("Failed to initialize session"))
+        self._initialize_session()
 
         search_data = self._prepare_search_data(params)
-        # time.sleep(random.uniform(1, 3))
-
         response = self.session.post(
             f"{self.base_url}/openPage.do",
             data=search_data,
@@ -170,47 +144,57 @@ class KoreaVisaAPI:
             raise APIException(_("Server returned error response"))
 
         tree = html.fromstring(response.text)
-        status, review_date = self._get_status_and_date(tree)
-        
-        application_date = self._get_element_text(tree, "APPL_DTM") or self._get_element_text(tree, "RECPT_YMD")
-        formatted_date = self._format_date(application_date) if application_date else None
+        # Создаем словарь всех элементов с атрибутом id для быстрого доступа
+        elements = {el.get("id"): el.text_content().strip() for el in tree.xpath('//*[@id]')}
 
-        # For status "접수" (Application Received) return minimal data
+        # Извлекаем статус и дату из элемента с id "PROC_STS_CDNM_1"
+        proc_text = elements.get("PROC_STS_CDNM_1", "")
+        if proc_text:
+            parts = proc_text.split('(', 1)
+            status = parts[0].strip()
+            review_date_raw = parts[1].rstrip(')').strip() if len(parts) > 1 else ""
+        else:
+            status, review_date_raw = "", ""
+
+        # Определяем дату подачи заявления
+        application_date_raw = elements.get("APPL_DTM") or elements.get("RECPT_YMD")
+        formatted_application_date = self._format_date(application_date_raw) if application_date_raw else None
+
+        # Если статус "접수" (Application Received) — возвращаем минимальные данные
         if status == '접수':
             return {
                 "status": "success",
                 "visa_data": {
-                    "entry_purpose": self._get_element_text(tree, "ENTRY_PURPOSE"),
+                    "entry_purpose": elements.get("ENTRY_PURPOSE", ""),
                     "progress_status": status,
                     "status_en": STATUS_TRANSLATIONS.get(status, ''),
-                    "application_date": formatted_date
+                    "application_date": formatted_application_date
                 }
             }
 
-        # For other statuses, get full data
-        expiry_date = self._get_element_text(tree, "VISA_EXPR_YMD")
-        expiry_date = self._format_date(expiry_date) if expiry_date else None
-
-        review_date = review_date.strip('()') if review_date else None
-        review_date = self._format_date(review_date) if review_date else None
+        # Для других статусов собираем полные данные
+        expiry_date = self._format_date(elements.get("VISA_EXPR_YMD", ""))
+        review_date = self._format_date(review_date_raw) if review_date_raw else None
 
         visa_data = {
-            "application_date": formatted_date,
-            "entry_purpose": self._get_element_text(tree, "ENTRY_PURPOSE"),
+            "application_date": formatted_application_date,
+            "entry_purpose": elements.get("ENTRY_PURPOSE", ""),
             "progress_status": status,
             "status_en": STATUS_TRANSLATIONS.get(status, ''),
-            "visa_type": self._get_element_text(tree, "VISA_KIND_CD"),
-            "stay_qualification": self._get_element_text(tree, "SOJ_QUAL_NM"),
+            "visa_type": elements.get("VISA_KIND_CD", ""),
+            "stay_qualification": elements.get("SOJ_QUAL_NM", ""),
             "expiry_date": expiry_date,
             "review_date": review_date
         }
 
-        # Check for rejection reason
-        rejection_elements = tree.xpath('//tr[@id="INTNET_OPEN_REJ_RSN_CD" and not(contains(@style, "display:none"))]//td')
+        # Проверяем наличие причины отказа
+        rejection_elements = tree.xpath(
+            '//tr[@id="INTNET_OPEN_REJ_RSN_CD" and not(contains(@style, "display:none"))]//td'
+        )
         if rejection_elements:
             visa_data['rejection_reason'] = rejection_elements[0].text_content().strip()
 
-        # Remove empty values
+        # Удаляем пустые значения
         visa_data = {k: v for k, v in visa_data.items() if v}
 
         return {
