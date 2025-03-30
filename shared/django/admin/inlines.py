@@ -86,6 +86,21 @@ class AnswerOptionInline(TranslationStackedInline):
 
     def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
         if db_field.name == 'parent' and self:
-            kwargs['queryset'] = AnswerOption.objects.filter(parent__isnull=True,
-                                                             question_id=request.path.replace('/change/', '')[-1])
+            # Get question_id from URL if we're in change view
+            path_parts = request.path.split('/')
+            if 'change' in path_parts:
+                try:
+                    question_id = path_parts[path_parts.index('change') - 1]
+                    if question_id and question_id.isdigit():
+                        kwargs['queryset'] = AnswerOption.objects.filter(
+                            parent__isnull=True,
+                            question_id=question_id
+                        )
+                    else:
+                        kwargs['queryset'] = AnswerOption.objects.filter(parent__isnull=True)
+                except (IndexError, ValueError):
+                    kwargs['queryset'] = AnswerOption.objects.filter(parent__isnull=True)
+            else:
+                # For add view, show all root options
+                kwargs['queryset'] = AnswerOption.objects.filter(parent__isnull=True)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
