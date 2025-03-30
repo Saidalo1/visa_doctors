@@ -70,6 +70,10 @@ class VisaDataSerializer(Serializer):
         required=False,
         help_text=_("Visa expiry date")
     )
+    review_date = CharField(
+        required=False,
+        help_text=_("Visa expiry date")
+    )
     rejection_reason = CharField(
         required=False,
         help_text=_("Rejection reason if application was rejected")

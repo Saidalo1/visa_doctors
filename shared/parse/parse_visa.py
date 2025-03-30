@@ -56,7 +56,7 @@ class KoreaVisaAPI:
     def _update_headers(self):
         """Update headers with random values"""
         try:
-            ua = UserAgent(browsers=['chrome', 'firefox', 'safari'])
+            ua = UserAgent(browsers='random')
             user_agent = ua.random
         except Exception as e:
             print(f"Warning: Failed to get random User-Agent from fake_useragent: {str(e)}")
@@ -79,15 +79,15 @@ class KoreaVisaAPI:
 
     def _initialize_session(self) -> bool:
         """Initialize session"""
-        try:
-            response = self.session.get(
-                f"{self.base_url}/openPage.do",
-                params={"MENU_ID": "10301"}
-            )
-            response.raise_for_status()
-            return True
-        except requests.RequestException as e:
-            raise APIException(_("Failed to initialize session: {}").format(str(e)))
+        # try:
+        response = self.session.get(
+            f"{self.base_url}/openPage.do",
+            params={"MENU_ID": "10301"}
+        )
+        response.raise_for_status()
+        return True
+        # except requests.RequestException as e:
+        #     raise APIException(_("Failed to initialize session: {}").format(str(e)))
 
     @staticmethod
     def _prepare_search_data(params: VisaSearchParams) -> Dict[str, str]:
@@ -112,65 +112,137 @@ class KoreaVisaAPI:
         div = soup.find('div', id=div_id)
         return div.get_text(strip=True) if div else ""
 
+    @staticmethod
+    def _get_status_and_date(soup: BeautifulSoup) -> tuple[str, str]:
+        """Get status and review date from PROC_STS_CDNM_1"""
+        status_div = soup.find('div', id='PROC_STS_CDNM_1')
+        if not status_div:
+            return "", ""
+
+        # Get all text nodes, filtering out comments and empty strings
+        text_nodes = [text for text in status_div.stripped_strings]
+
+        if not text_nodes:
+            return "", ""
+
+        # First node is status
+        status = text_nodes[0]
+
+        # Last node might be date in parentheses
+        date = ""
+        if len(text_nodes) > 1:
+            date = text_nodes[-1]
+
+        return status, date
+
     def check_visa_status(self, params: VisaSearchParams) -> Dict[str, Any]:
         """Check visa status"""
-        try:
-            self._update_headers()
-            if not self._initialize_session():
-                raise APIException(_("Failed to initialize session"))
+        self._update_headers()
+        if not self._initialize_session():
+            raise APIException(_("Failed to initialize session"))
 
-            search_data = self._prepare_search_data(params)
-            time.sleep(random.uniform(1, 3))
+        search_data = self._prepare_search_data(params)
+        time.sleep(random.uniform(1, 3))
 
-            response = self.session.post(
-                f"{self.base_url}/openPage.do",
-                data=search_data,
-                params={"MENU_ID": "10301"},
-                headers={"Content-Type": "application/x-www-form-urlencoded"}
-            )
-            response.raise_for_status()
+        response = self.session.post(
+            f"{self.base_url}/openPage.do",
+            data=search_data,
+            params={"MENU_ID": "10301"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"}
+        )
+        response.raise_for_status()
 
-            if "ERROR_TYPE" in response.text:
-                raise APIException(_("Server returned error response"))
+        if "ERROR_TYPE" in response.text:
+            raise APIException(_("Server returned error response"))
 
-            soup = BeautifulSoup(response.text, 'html.parser')
+        soup = BeautifulSoup(response.text, 'html.parser')
 
-            # Extract all available data
-            visa_data = {
-                "application_number": self._get_div_text(soup, "ONLINE_APPL_NO"),
-                "application_date": self._get_div_text(soup, "APPL_DTM"),
-                "entry_purpose": self._get_div_text(soup, "ENTRY_PURPOSE"),
-                "progress_status": self._get_div_text(soup, "PROC_STS_CDNM_1"),
-                "visa_type": self._get_div_text(soup, "VISA_KIND_CD"),
-                "stay_qualification": self._get_div_text(soup, "SOJ_QUAL_NM"),
-                "expiry_date": self._get_div_text(soup, "VISA_EXPR_YMD")
-            }
+        # Get application date
+        application_date = self._get_div_text(soup, "APPL_DTM")
 
-            # Check for rejection reason
-            rejection_row = soup.find('tr', id='INTNET_OPEN_REJ_RSN_CD')
-            if rejection_row and rejection_row.get('style') != 'display:none;':
-                visa_data['rejection_reason'] = rejection_row.find('td').get_text(strip=True)
+        # Get status and review date separately
+        status, review_date = self._get_status_and_date(soup)
 
-            # Add status translation
-            status_translations = {
-                '허가': 'Approved',
-                '상세정보접수': 'Application Received',
-                '불허': 'Rejected',
-                '심사중': 'Under Review'
-            }
+        # Extract all available data with proper element IDs
+        visa_data = {
+            "application_number": application_date,
+            "application_date": self._get_div_text(soup, "APPL_DTM"),
+            "entry_purpose": self._get_div_text(soup, "ENTRY_PURPOSE"),
+            "progress_status": status,  # Use status without date
+            "review_date": review_date.strip('()'),  # Add review date as separate field
+            "visa_type": self._get_div_text(soup, "VISA_KIND_CD"),
+            "stay_qualification": self._get_div_text(soup, "SOJ_QUAL_NM"),
+            "expiry_date": self._get_div_text(soup, "VISA_EXPR_YMD")
+        }
 
-            if visa_data['progress_status'] in status_translations:
-                visa_data['status_en'] = status_translations[visa_data['progress_status']]
+        # If application_date is empty, try alternative field
+        if not application_date:
+            application_date = self._get_div_text(soup, "RECPT_YMD")
 
+        if application_date:
+            try:
+                date_obj = datetime.strptime(application_date, '%Y%m%d')
+                application_date = date_obj.strftime('%Y-%m-%d')
+            except (ValueError, AttributeError):
+                pass
+            finally:
+                visa_data["application_date"] = application_date
+
+        # Check for rejection reason
+        rejection_row = soup.find('tr', id='INTNET_OPEN_REJ_RSN_CD')
+        if rejection_row and rejection_row.get('style') != 'display:none;':
+            visa_data['rejection_reason'] = rejection_row.find('td').get_text(strip=True)
+
+        # Add status translation
+        status_translations = {
+            '허가': 'Approved',
+            '상세정보접수': 'Application Received',
+            '불허': 'Rejected',
+            '심사중': 'Under Review',
+            '접수': 'Application Received'
+        }
+
+        # Get progress status from correct element
+        progress_status = visa_data['progress_status']
+        if not progress_status:
+            # Try alternative elements
+            progress_div = soup.find('div', id='PROC_STS_CDNM_1')
+            if progress_div:
+                # Get all text nodes and join them
+                progress_status = ''.join(node.strip() for node in progress_div.stripped_strings)
+                visa_data['progress_status'] = progress_status
+
+        if progress_status in status_translations:
+            visa_data['status_en'] = status_translations[progress_status]
+
+        # Clean empty values and format dates
+        visa_data = {k: v.strip('().') for k, v in visa_data.items() if v}
+
+        # Convert date format if exists (from YYYY.MM.DD. to YYYY-MM-DD)
+        if 'application_date' in visa_data:
+            try:
+                date_str = visa_data['application_date'].strip('.')
+                date_obj = datetime.strptime(date_str, '%Y.%m.%d')
+                visa_data['application_date'] = date_obj.strftime('%Y-%m-%d')
+            except (ValueError, AttributeError):
+                pass
+
+        # For status "접수" (Application Received) return only necessary fields
+        if progress_status == '접수':
             return {
                 "status": "success",
-                "visa_data": {k: v for k, v in visa_data.items() if v}
+                "visa_data": {
+                    "entry_purpose": visa_data.get('entry_purpose', ''),
+                    "progress_status": progress_status,
+                    "status_en": visa_data.get('status_en', ''),
+                    "application_date": visa_data.get('application_date', '')
+                }
             }
 
-        except requests.RequestException as e:
-            raise APIException(_("Failed to check visa status: {}").format(str(e)))
-        except Exception as e:
-            raise APIException(_("Unexpected error: {}").format(str(e)))
+        return {
+            "status": "success",
+            "visa_data": visa_data
+        }
 
 
 def format_date(date_str: str) -> str:
