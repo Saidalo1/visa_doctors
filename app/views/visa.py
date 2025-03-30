@@ -8,7 +8,7 @@ from app.serializers import (
     VisaStatusCheckInputSerializer,
     VisaStatusCheckResponseSerializer
 )
-from shared.django import VISA
+from shared.django import VISA, RecaptchaPermission
 from shared.parse import VisaSearchParams, KoreaVisaAPI
 
 
@@ -31,8 +31,7 @@ Check visa application status using passport number, name and birth date.
 )
 class VisaStatusCheckAPIView(APIView):
     """API view for checking visa status."""
-
-    # permission_classes = [RecaptchaPermission]
+    permission_classes = [RecaptchaPermission]
 
     @staticmethod
     def post(request):
