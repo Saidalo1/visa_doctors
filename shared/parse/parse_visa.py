@@ -194,6 +194,25 @@ class KoreaVisaAPI:
         if rejection_elements:
             visa_data['rejection_reason'] = rejection_elements[0].text_content().strip()
 
+        # Если виза одобрена, добавляем информацию для скачивания PDF
+        if status == '허가':
+            ev_seq = str(tree.xpath('//input[@id="EV_SEQ"]/@value')[0])
+            if ev_seq:
+                visa_data['pdf_url'] = f"{self.base_url}/biz/ap/ev/selectElectronicVisaPrint3.do"
+                visa_data['pdf_params'] = {
+                    "EV_SEQ": ev_seq,
+                    "INVITEE_SEQ": "0",
+                    "APPL_NO": "",
+                    "ENG_NM": params.english_name,
+                    "BIRTH_YMD": params.birth_date.replace("-", ""),
+                    "sBUSI_GB": "PASS_NO",
+                    "sBUSI_GBNO": params.passport_number,
+                    "TRAN_TYPE": "ComSubmit",
+                    "IN_PHOTO": f"{self.base_url}/biz/ap/ev/selectInviteeXvarmImage.do",
+                    "SE_FLAG_YN": "",
+                    "LANG_TYPE": "KO"
+                }
+
         # Удаляем пустые значения
         visa_data = {k: v for k, v in visa_data.items() if v}
 

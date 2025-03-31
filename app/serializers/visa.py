@@ -3,7 +3,7 @@ from datetime import datetime
 
 from django.utils.translation import gettext_lazy as _
 from rest_framework.exceptions import ValidationError
-from rest_framework.fields import CharField, DateField
+from rest_framework.fields import CharField, DateField, DictField
 from rest_framework.serializers import Serializer
 
 
@@ -77,6 +77,14 @@ class VisaDataSerializer(Serializer):
     rejection_reason = CharField(
         required=False,
         help_text=_("Rejection reason if application was rejected")
+    )
+    pdf_url = CharField(
+        required=False,
+        help_text=_("URL for downloading visa PDF")
+    )
+    pdf_params = DictField(
+        required=False,
+        help_text=_("Parameters required for PDF download")
     )
 
 
