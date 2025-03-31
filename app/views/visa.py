@@ -1,14 +1,14 @@
 """Views for visa functionality."""
-from django.utils.translation import gettext_lazy as _
-from drf_spectacular.utils import extend_schema, extend_schema_view
-from rest_framework.response import Response
-from rest_framework.views import APIView
+import requests
 from django.conf import settings
 from django.http import HttpResponse
-from rest_framework.exceptions import APIException
-from drf_spectacular.utils import extend_schema, OpenApiResponse
+from django.utils.translation import gettext_lazy as _
 from drf_spectacular.types import OpenApiTypes
-import requests
+from drf_spectacular.utils import extend_schema, OpenApiResponse
+from drf_spectacular.utils import extend_schema_view
+from rest_framework.exceptions import APIException
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from app.serializers import (
     VisaStatusCheckInputSerializer,
@@ -63,6 +63,10 @@ class VisaStatusCheckAPIView(APIView):
         # Check visa status
         visa_api = KoreaVisaAPI()
         result = visa_api.check_visa_status(search_params)
+
+        # Проверяем, что данные найдены
+        if not result.get('visa_data', {}).get('progress_status'):
+            raise APIException(_("Visa application not found. Please check your passport number, name and birth date."))
 
         # Validate response data
         response_serializer = VisaStatusCheckResponseSerializer(data=result)
@@ -129,7 +133,8 @@ class VisaPDFDownloadAPIView(APIView):
 
             # Возвращаем PDF
             response = HttpResponse(pdf_response.content, content_type='application/pdf')
-            response['Content-Disposition'] = f'attachment; filename="visa_{serializer.validated_data["pdf_params"]["EV_SEQ"]}.pdf"'
+            response[
+                'Content-Disposition'] = f'attachment; filename="visa_{serializer.validated_data["pdf_params"]["EV_SEQ"]}.pdf"'
             return response
 
         except Exception as e:
