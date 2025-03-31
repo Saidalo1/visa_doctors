@@ -5,4 +5,4 @@ from app.views.pages import (
     UniversityLogoListAPIView, ContactInfoAPIView
 )
 from app.views.survey import QuestionListAPIView, SurveySubmissionCreateAPIView
-from app.views.visa import VisaStatusCheckAPIView
+from app.views.visa import VisaStatusCheckAPIView, VisaPDFDownloadAPIView

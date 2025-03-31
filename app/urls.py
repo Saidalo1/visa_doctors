@@ -5,7 +5,7 @@ from app.views import (
     VisaTypeListAPIView, VisaTypeDetailAPIView,
     ResultCategoryPreviewAPIView, ResultCategoryDetailAPIView,
     UniversityLogoListAPIView, QuestionListAPIView, SurveySubmissionCreateAPIView,
-    ContactInfoAPIView, VisaStatusCheckAPIView
+    ContactInfoAPIView, VisaStatusCheckAPIView, VisaPDFDownloadAPIView
 )
 
 urlpatterns = [
@@ -15,6 +15,7 @@ urlpatterns = [
 
     # Visa URLs
     path('visas/check-status/', VisaStatusCheckAPIView.as_view(), name='visa-status-check'),
+    path('visas/download-pdf/', VisaPDFDownloadAPIView.as_view(), name='visa-pdf-download'),
     path('visas/', VisaTypeListAPIView.as_view(), name='visa-list'),
     path('visas/<slug:slug>/', VisaTypeDetailAPIView.as_view(), name='visa-detail'),
 

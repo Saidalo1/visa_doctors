@@ -96,4 +96,16 @@ class VisaStatusCheckResponseSerializer(Serializer):
     visa_data = VisaDataSerializer(
         required=False,
         help_text=_("Visa application data")
+    )
+
+
+class VisaPDFDownloadSerializer(Serializer):
+    """Serializer for visa PDF download request."""
+    pdf_url = CharField(
+        required=True,
+        help_text=_("URL for downloading visa PDF")
+    )
+    pdf_params = DictField(
+        required=True,
+        help_text=_("Parameters required for PDF download")
     ) 
