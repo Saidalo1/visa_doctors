@@ -42,7 +42,6 @@ class KoreaVisaAPI:
 
     @staticmethod
     def _get_random_language_header() -> str:
-        """Generate random language header"""
         return random.choice([
             "en-US,en;q=0.9",
             "en-GB,en;q=0.9",
@@ -54,7 +53,6 @@ class KoreaVisaAPI:
 
     @staticmethod
     def _get_user_agent() -> str:
-        """Get random user agent from predefined list"""
         return random.choice([
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
@@ -68,7 +66,6 @@ class KoreaVisaAPI:
         ])
 
     def _update_headers(self) -> None:
-        """Update headers with random values"""
         self.session.headers.update({
             "User-Agent": self._get_user_agent(),
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
@@ -84,7 +81,6 @@ class KoreaVisaAPI:
         })
 
     def _initialize_session(self) -> None:
-        """Initialize session"""
         response = self.session.get(
             f"{self.base_url}/openPage.do",
             params={"MENU_ID": "10301"}
@@ -93,7 +89,6 @@ class KoreaVisaAPI:
 
     @staticmethod
     def _prepare_search_data(params: VisaSearchParams) -> Dict[str, str]:
-        """Prepare search data"""
         return {
             "CMM_TEST_VAL": "test",
             "sBUSI_GB": "PASS_NO",
@@ -110,10 +105,8 @@ class KoreaVisaAPI:
 
     @staticmethod
     def _format_date(date_str: str) -> Optional[str]:
-        """Format date string to YYYY-MM-DD format"""
         if not date_str:
             return None
-
         date_str = date_str.strip('.')
         try:
             if '.' in date_str:
@@ -140,14 +133,14 @@ class KoreaVisaAPI:
         )
         response.raise_for_status()
 
-        if ERROR_PATTERN.search(response.text):
+        if ERROR_PATTERN.search(response.content.decode(errors="ignore")):
             raise APIException(_("Server returned error response"))
 
-        tree = html.fromstring(response.text)
-        # Создаем словарь всех элементов с атрибутом id для быстрого доступа
+        # Use response.content for parsing
+        tree = html.fromstring(response.content)
+        # Collect all elements with id in one XPath call
         elements = {el.get("id"): el.text_content().strip() for el in tree.xpath('//*[@id]')}
 
-        # Извлекаем статус и дату из элемента с id "PROC_STS_CDNM_1"
         proc_text = elements.get("PROC_STS_CDNM_1", "")
         if proc_text:
             parts = proc_text.split('(', 1)
@@ -156,23 +149,18 @@ class KoreaVisaAPI:
         else:
             status, review_date_raw = "", ""
 
-        # Определяем дату подачи заявления
         application_date_raw = elements.get("APPL_DTM") or elements.get("RECPT_YMD")
         formatted_application_date = self._format_date(application_date_raw) if application_date_raw else None
 
-        # Если статус "접수" (Application Received) — возвращаем минимальные данные
         if status == '접수':
-            return {
-                "status": "success",
-                "visa_data": {
-                    "entry_purpose": elements.get("ENTRY_PURPOSE", ""),
-                    "progress_status": status,
-                    "status_en": STATUS_TRANSLATIONS.get(status, ''),
-                    "application_date": formatted_application_date
-                }
+            visa_data = {
+                "entry_purpose": elements.get("ENTRY_PURPOSE", ""),
+                "progress_status": status,
+                "status_en": STATUS_TRANSLATIONS.get(status, ''),
+                "application_date": formatted_application_date
             }
+            return {"status": "success", "visa_data": visa_data}
 
-        # Для других статусов собираем полные данные
         expiry_date = self._format_date(elements.get("VISA_EXPR_YMD", ""))
         review_date = self._format_date(review_date_raw) if review_date_raw else None
 
@@ -187,16 +175,14 @@ class KoreaVisaAPI:
             "review_date": review_date
         }
 
-        # Проверяем наличие причины отказа
-        rejection_elements = tree.xpath(
-            '//tr[@id="INTNET_OPEN_REJ_RSN_CD" and not(contains(@style, "display:none"))]//td'
-        )
+        rejection_elements = tree.xpath('//tr[@id="INTNET_OPEN_REJ_RSN_CD" and not(contains(@style, "display:none"))]//td')
         if rejection_elements:
             visa_data['rejection_reason'] = rejection_elements[0].text_content().strip()
 
-        # Если виза одобрена, добавляем информацию для скачивания PDF
         if status == '허가':
-            ev_seq = str(tree.xpath('//input[@id="EV_SEQ"]/@value')[0])
+            # Extract the EV_SEQ value in one XPath call
+            ev_seq_list = tree.xpath('//input[@id="EV_SEQ"]/@value')
+            ev_seq = ev_seq_list[0] if ev_seq_list else ""
             if ev_seq:
                 visa_data['pdf_url'] = f"{self.base_url}/biz/ap/ev/selectElectronicVisaPrint3.do"
                 visa_data['pdf_params'] = {
@@ -213,17 +199,13 @@ class KoreaVisaAPI:
                     "LANG_TYPE": "KO"
                 }
 
-        # Удаляем пустые значения
+        # Remove empty values
         visa_data = {k: v for k, v in visa_data.items() if v}
 
-        return {
-            "status": "success",
-            "visa_data": visa_data
-        }
+        return {"status": "success", "visa_data": visa_data}
 
 
 def format_date(date_str: str) -> str:
-    """Format date to required format"""
     try:
         date_obj = datetime.strptime(date_str, "%Y-%m-%d")
         return date_obj.strftime("%Y-%m-%d")
