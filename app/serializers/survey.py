@@ -38,7 +38,7 @@ class QuestionSerializer(ModelSerializer):
 
     class Meta:
         model = Question
-        fields = 'id', 'title', 'input_type', 'options', 'field_type', 'is_required'
+        fields = 'id', 'title', 'input_type', 'options', 'field_type', 'is_required', 'placeholder'
 
 
 class ResponseSerializer(ModelSerializer):
