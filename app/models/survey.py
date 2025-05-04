@@ -167,6 +167,13 @@ class SurveySubmission(BaseModel):
         help_text=_('Where did the user come from?')
     )
 
+    comment = TextField(
+        _('Comment'),
+        blank=True,
+        null=True,
+        help_text=_('Comment about this submission')
+    )
+
     class Meta:
         verbose_name = _('Survey Submission')
         verbose_name_plural = _('Survey Submissions')

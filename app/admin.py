@@ -96,11 +96,12 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
         'get_field_of_study',
         'status',
         'source', 
+        'comment',
         'created_at', 
         'get_responses_count'
     )
     list_filter = ('status', 'source', ('created_at', DateRangeFilter))
-    search_fields = 'id', 'responses__text_answer'
+    search_fields = 'id', 'responses__text_answer', 'comment'
     readonly_fields = 'created_at',
     date_hierarchy = 'created_at'
     inlines = [ResponseInline]
