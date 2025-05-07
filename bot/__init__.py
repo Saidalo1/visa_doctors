@@ -22,7 +22,7 @@ from bot.handlers import (
     process_callback
 )
 from bot.states import FilterStates
-from app.utils.telegram import handle_status_callback
+from app.utils.telegram import handle_status_callback, handle_comment_callback
 
 # Configure root logger
 root_logger = logging.getLogger()
@@ -89,6 +89,7 @@ class VisaDoctorsBot:
         # Register message handlers for private chats only
         self.dp.message.register(cmd_start, Command('start'), F.chat.type == ChatType.PRIVATE)
         self.dp.message.register(process_value_input, FilterStates.entering_value, F.chat.type == ChatType.PRIVATE)
+        self.dp.message.register(process_value_input, FilterStates.editing_comment)
         
         # Регистрируем общий обработчик колбэков для пагинации и экспорта
         self.dp.callback_query.register(
@@ -115,6 +116,12 @@ class VisaDoctorsBot:
             )
         )
 
+        # Register handler for comment editing
+        self.dp.callback_query.register(
+            handle_comment_callback,
+            lambda c: c.data and c.data.startswith(('edit_comment:', 'comment_back:'))
+        )
+        
         # Register handler for submission status updates
         self.dp.callback_query.register(
             handle_status_callback,

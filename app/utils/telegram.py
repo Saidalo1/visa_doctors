@@ -11,6 +11,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from app.models import SurveySubmission, Response
+from bot.states import FilterStates
 
 logger = logging.getLogger(__name__)
 
@@ -156,6 +157,15 @@ async def format_submission_notification(submission_id: int) -> str:
             else:
                 message_lines.append(f"  • *{field_key}:* Ko'rsatilmagan")
 
+        # Добавляем комментарий, если он есть
+        if submission.comment:
+            message_lines.extend([
+                "",
+                "*💬 Izoh:*",
+                separator,
+                f"{submission.comment}"
+            ])
+
         # Добавим нижнюю разделительную линию
         message_lines.append(separator)
 
@@ -216,32 +226,98 @@ def notify_new_submission_async(submission_id: int) -> None:
 
 
 @sync_to_async
-def get_submission_and_update_status(submission_id: int, new_status: str) -> 'SurveySubmission':
+def get_submission_by_id(submission_id: int) -> 'SurveySubmission':
+    """Get submission by ID."""
+    return SurveySubmission.objects.get(id=submission_id)
+
+
+@sync_to_async
+def get_submission_and_update_status(submission_id: int, new_status: str = None, comment: str = None) -> 'SurveySubmission':
     """
-    Получает объект заявки и обновляет его статус.
+    Получает объект заявки и обновляет его статус или комментарий.
     
     Args:
         submission_id: ID заявки
-        new_status: Новый статус
+        new_status: Новый статус (опционально)
+        comment: Новый комментарий (опционально)
         
     Returns:
         SurveySubmission: Обновленный объект заявки
     """
     submission = SurveySubmission.objects.get(id=submission_id)
-    submission.status = new_status
-    submission.save(update_fields=['status'])
+    update_fields = []
+    
+    if new_status:
+        submission.status = new_status
+        update_fields.append('status')
+        
+    if comment is not None:
+        submission.comment = comment
+        update_fields.append('comment')
+        
+    if update_fields:
+        submission.save(update_fields=update_fields)
+        
     return submission
 
 
-async def handle_status_callback(callback_query: CallbackQuery, state) -> None:
-    """
-    Обработчик callback-запроса для изменения статуса заявки.
-    
-    Args:
-        callback_query: Объект callback query от Telegram
-        state: Состояние FSM
-    """
+async def handle_comment_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle comment editing callbacks."""
     try:
+        # Get action and parameters
+        action, *params = callback_query.data.split(':')
+        
+        if action == 'edit_comment':
+            # Handle comment editing
+            submission_id = int(params[0])
+            
+            # Store original message for restoration when going back
+            submission = await get_submission_by_id(submission_id)
+            message_text = await format_submission_notification(submission_id)
+            await state.update_data(
+                editing_submission_id=submission_id,
+                original_message=message_text,
+                original_message_id=callback_query.message.message_id
+            )
+            await state.set_state(FilterStates.editing_comment)
+            
+            # Create keyboard with back button
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="⬅️ Orqaga", callback_data=f"comment_back:{submission_id}")]
+            ])
+            
+            await callback_query.message.edit_text(
+                "Izoh qoldiring:",
+                reply_markup=keyboard
+            )
+            await callback_query.answer()
+            
+        elif action == 'comment_back':
+            # Restore original message and keyboard
+            submission_id = int(params[0])
+            data = await state.get_data()
+            original_message = data.get('original_message')
+            
+            if original_message:
+                keyboard = await create_submission_keyboard(submission_id)
+                await callback_query.message.edit_text(
+                    original_message,
+                    reply_markup=keyboard,
+                    parse_mode='Markdown'
+                )
+            
+            await state.clear()
+            await callback_query.answer()
+            
+    except Exception as e:
+        logger.error(f"Failed to handle comment callback: {e}")
+        await callback_query.answer("❌ Xatolik yuz berdi")
+
+
+async def handle_status_callback(callback_query: CallbackQuery, state: FSMContext):
+    """Handle status selection and update callbacks."""
+    try:
+        # Get action and parameters
         action, *params = callback_query.data.split(':')
         
         if action == 'show_status':
@@ -332,6 +408,9 @@ async def create_submission_keyboard(submission_id: int) -> InlineKeyboardMarkup
         [
             InlineKeyboardButton(text=f"Status: {current_status}", callback_data=f"show_status:{submission_id}"),
             InlineKeyboardButton(text="Admin panelda ko'rish", url=admin_url)
+        ],
+        [
+            InlineKeyboardButton(text="Izoh o'zgartirish", callback_data=f"edit_comment:{submission_id}")
         ]
     ]
     

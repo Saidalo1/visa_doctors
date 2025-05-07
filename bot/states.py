@@ -16,3 +16,6 @@ class FilterStates(StatesGroup):
     # Question filter states
     entering_text = State()        # Ввод текста для поиска
     selecting_option = State()     # Выбор опции из списка 
+    
+    # Comment states
+    editing_comment = State()      # Состояние редактирования комментария

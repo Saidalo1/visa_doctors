@@ -18,6 +18,8 @@ from django.utils import timezone
 
 from app.admin import SurveySubmissionAdmin
 from app.models import Response, SurveySubmission, Question
+from app.utils.telegram import get_submission_and_update_status, create_submission_keyboard, \
+    format_submission_notification
 from bot.filters import SurveyFilter
 from bot.keyboards import (
     get_filters_menu,
@@ -1088,10 +1090,43 @@ async def process_calendar_callback(callback_query: types.CallbackQuery, state: 
 
 
 async def process_value_input(message: types.Message, state: FSMContext):
-    """Process text input for text filters."""
+    """Process text input for text filters and comments."""
     try:
-        # Get current state data
+        current_state = await state.get_state()
         data = await state.get_data()
+        
+        # Handle comment input
+        if current_state == FilterStates.editing_comment.state:
+            submission_id = data.get('editing_submission_id')
+            original_message = data.get('original_message_id')
+            
+            if submission_id and original_message:
+                # Update comment in database
+                submission = await get_submission_and_update_status(
+                    submission_id=submission_id,
+                    comment=message.text
+                )
+                
+                # Get updated submission text and keyboard
+                message_text = await format_submission_notification(submission_id)
+                keyboard = await create_submission_keyboard(submission_id)
+                
+                # Delete user's message
+                await message.delete()
+                
+                # Update original message with new data
+                await message.bot.edit_message_text(
+                    chat_id=message.chat.id,
+                    message_id=original_message,
+                    text=message_text,
+                    reply_markup=keyboard,
+                    parse_mode='Markdown'
+                )
+                
+                await state.clear()
+                return
+            
+        # Handle text filter input
         current_filter = data.get('current_filter')
         filter_state = data.get('filter_state', {})
         
