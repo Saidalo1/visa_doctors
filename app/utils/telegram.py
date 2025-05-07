@@ -271,12 +271,9 @@ async def handle_comment_callback(callback_query: CallbackQuery, state: FSMConte
             # Handle comment editing
             submission_id = int(params[0])
             
-            # Store original message for restoration when going back
-            submission = await get_submission_by_id(submission_id)
-            message_text = await format_submission_notification(submission_id)
+            # Store submission id and original message id for editing
             await state.update_data(
                 editing_submission_id=submission_id,
-                original_message=message_text,
                 original_message_id=callback_query.message.message_id
             )
             await state.set_state(FilterStates.editing_comment)
@@ -293,18 +290,12 @@ async def handle_comment_callback(callback_query: CallbackQuery, state: FSMConte
             await callback_query.answer()
             
         elif action == 'comment_back':
-            # Restore original message and keyboard
+            # Regenerate submission text and keyboard
             submission_id = int(params[0])
-            data = await state.get_data()
-            original_message = data.get('original_message')
-            
-            # If state is lost (e.g. after bot restart), regenerate the message
-            if not original_message:
-                original_message = await format_submission_notification(submission_id)
-            
+            message_text = await format_submission_notification(submission_id)
             keyboard = await create_submission_keyboard(submission_id)
             await callback_query.message.edit_text(
-                original_message,
+                message_text,
                 reply_markup=keyboard,
                 parse_mode='Markdown'
             )
