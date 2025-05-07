@@ -652,6 +652,7 @@ if not DEBUG:
 # Telegram Notifications Configuration
 TELEGRAM_BOT_TOKEN = env.str('TELEGRAM_BOT_TOKEN', default='')
 TELEGRAM_CHAT_ID = env.str('TELEGRAM_CHAT_ID', default='')
+TELEGRAM_ADMIN_ID = env.str('TELEGRAM_ADMIN_ID', default='')
 TELEGRAM_NOTIFICATIONS_ENABLED = env.bool('TELEGRAM_NOTIFICATIONS_ENABLED', default=False)
 REDIS_URL = f"redis://:{env.str('REDIS_PASSWORD')}@{env.str('REDIS_HOST', 'redis')}:{env.int('REDIS_PORT', 6379)}/{env.int('TELEGRAM_REDIS_DB', 2)}"
 

@@ -16,6 +16,34 @@ from bot.states import FilterStates
 logger = logging.getLogger(__name__)
 
 
+async def notify_admin_about_error(bot: Bot, error: Exception, context: str, submission_id: int = None) -> None:
+    """
+    Send error notification to admin.
+    
+    Args:
+        bot: Bot instance to use for sending message
+        error: Exception that occurred
+        context: Context where error occurred
+        submission_id: Optional submission ID related to error
+    """
+    try:
+        error_text = str(error)
+        if len(error_text) > 100:
+            error_text = f"...{error_text[-100:]}"  # Берем последние 100 символов
+            
+        message = f"❌ Xatolik: {context}\n"
+        if submission_id:
+            message += f"Ariza ID: #{submission_id}\n"
+        message += f"Xatolik: {error_text}"
+            
+        await bot.send_message(
+            chat_id=settings.TELEGRAM_ADMIN_ID,
+            text=message
+        )
+    except Exception as admin_error:
+        logger.error(f"Failed to notify admin about error: {admin_error}", exc_info=True)
+
+
 async def send_telegram_message(message: str, submission_id: int = None) -> bool:
     """
     Send a message to the configured Telegram chat.
@@ -39,6 +67,7 @@ async def send_telegram_message(message: str, submission_id: int = None) -> bool
         )
         return False
 
+    bot = None
     try:
         bot = Bot(token=token)
 
@@ -53,11 +82,20 @@ async def send_telegram_message(message: str, submission_id: int = None) -> bool
             parse_mode=ParseMode.MARKDOWN,
             reply_markup=keyboard
         )
-        await bot.session.close()
         return True
     except Exception as e:
         logger.error(f"Failed to send Telegram notification: {e}")
+        if bot:
+            await notify_admin_about_error(
+                bot=bot,
+                error=e,
+                context="Guruhga xabar yuborib bo'lmadi",
+                submission_id=submission_id
+            )
         return False
+    finally:
+        if bot:
+            await bot.session.close()
 
 
 @sync_to_async
@@ -192,12 +230,21 @@ async def notify_new_submission(submission_id: int) -> None:
     Args:
         submission_id: ID of the submission
     """
+    bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
     try:
         message = await format_submission_notification(submission_id)
         await send_telegram_message(message, submission_id)
         logger.info(f"Telegram notification sent for submission #{submission_id}")
     except Exception as e:
         logger.error(f"Failed to send submission notification: {e}")
+        await notify_admin_about_error(
+            bot=bot,
+            error=e,
+            context="Yangi ariza haqida xabar yuborib bo'lmadi",
+            submission_id=submission_id
+        )
+    finally:
+        await bot.session.close()
 
 
 def notify_new_submission_async(submission_id: int) -> None:
