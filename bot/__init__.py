@@ -6,8 +6,8 @@ from logging.handlers import RotatingFileHandler
 from typing import Optional
 
 from aiogram import Bot, Dispatcher, F
-from aiogram.filters import Command
 from aiogram.enums.chat_type import ChatType
+from aiogram.filters import Command
 from aiogram.fsm.storage.redis import RedisStorage
 from django.conf import settings
 
@@ -22,7 +22,6 @@ from bot.handlers import (
     process_callback
 )
 from bot.states import FilterStates
-from app.utils.telegram import handle_status_callback, handle_comment_callback
 
 # Configure root logger
 root_logger = logging.getLogger()
@@ -36,7 +35,7 @@ if not os.path.exists(log_dir):
 # Create rotating file handler for root logger
 root_file_handler = RotatingFileHandler(
     filename=os.path.join(log_dir, 'app.log'),
-    maxBytes=5*1024*1024,  # 5MB
+    maxBytes=5 * 1024 * 1024,  # 5MB
     backupCount=3,  # Keep 3 backup files
     encoding='utf-8'
 )
@@ -81,6 +80,8 @@ class VisaDoctorsBot:
 
     def setup(self) -> None:
         """Initialize bot, dispatcher and register handlers."""
+        from app.utils.telegram import handle_status_callback, handle_comment_callback
+
         # Initialize bot and dispatcher
         self.bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
         self.storage = RedisStorage.from_url(settings.REDIS_URL)
@@ -90,29 +91,29 @@ class VisaDoctorsBot:
         self.dp.message.register(cmd_start, Command('start'), F.chat.type == ChatType.PRIVATE)
         self.dp.message.register(process_value_input, FilterStates.entering_value, F.chat.type == ChatType.PRIVATE)
         self.dp.message.register(process_value_input, FilterStates.editing_comment)
-        
+
         # Регистрируем общий обработчик колбэков для пагинации и экспорта
         self.dp.callback_query.register(
             process_callback,
             F.message.chat.type == ChatType.PRIVATE
         )
-        
+
         # Register specialized callback handlers with specific filters
         self.dp.callback_query.register(
             process_filter_callback,
             F.message.chat.type == ChatType.PRIVATE,
             lambda c: c.data and (
-                c.data.startswith(('filter_', 'option_', 'parent_', 'status_')) or 
-                c.data in ('apply_filter', 'back_to_filters', 'show_results', 'clear_filters')
+                    c.data.startswith(('filter_', 'option_', 'parent_', 'status_')) or
+                    c.data in ('apply_filter', 'back_to_filters', 'show_results', 'clear_filters')
             )
         )
-        
+
         self.dp.callback_query.register(
             process_calendar_callback,
             F.message.chat.type == ChatType.PRIVATE,
             lambda c: c.data and (
-                c.data.startswith(('date_', 'month-', 'select_month-')) or 
-                c.data == 'back_to_filters'
+                    c.data.startswith(('date_', 'month-', 'select_month-')) or
+                    c.data == 'back_to_filters'
             )
         )
 
@@ -121,12 +122,12 @@ class VisaDoctorsBot:
             handle_comment_callback,
             lambda c: c.data and c.data.startswith(('edit_comment:', 'comment_back:'))
         )
-        
+
         # Register handler for submission status updates
         self.dp.callback_query.register(
             handle_status_callback,
             lambda c: c.data and c.data.startswith((
-                'show_status:', 'select_status:', 
+                'show_status:', 'select_status:',
                 'apply_status:', 'back_to_main:'
             ))
         )
@@ -156,4 +157,4 @@ class VisaDoctorsBot:
 
 
 # Create bot instance
-bot = VisaDoctorsBot() 
+bot = VisaDoctorsBot()
