@@ -18,8 +18,6 @@ from django.utils import timezone
 
 from app.admin import SurveySubmissionAdmin
 from app.models import Response, SurveySubmission, Question
-from app.utils.telegram import get_submission_and_update_status, create_submission_keyboard, \
-    format_submission_notification
 from bot.filters import SurveyFilter
 from bot.keyboards import (
     get_filters_menu,
@@ -1090,6 +1088,8 @@ async def process_calendar_callback(callback_query: types.CallbackQuery, state: 
 
 
 async def process_value_input(message: types.Message, state: FSMContext):
+    from app.utils.telegram import get_submission_and_update_status, create_submission_keyboard, \
+        format_submission_notification
     """Process text input for text filters and comments."""
     try:
         current_state = await state.get_state()
