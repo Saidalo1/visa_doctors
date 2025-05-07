@@ -1,9 +1,12 @@
+import io
+import time
 import tablib
 from django.db.models import Prefetch
 from django.utils.translation import gettext_lazy as _
 from import_export import resources, fields
 from import_export.resources import ModelResource
-from openpyxl.styles import Alignment, Font
+from openpyxl import load_workbook
+from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from app.models import SurveySubmission, Question, Response, AnswerOption, InputFieldType
@@ -229,43 +232,74 @@ class SurveySubmissionResource(resources.ModelResource):
         """
         Export data to a Dataset.
         """
-        import time, io
-        from openpyxl import load_workbook
-        start_time = time.time()
         self.before_export(queryset, *args, **kwargs)
         if queryset is None:
             queryset = self.get_queryset()
         if kwargs.get('export_form'):
             queryset = self.filter_export(queryset, **kwargs)
+
+        # Создаем Dataset
         dataset = tablib.Dataset()
         headers = self.get_export_headers()
         dataset.headers = headers
         export_order = self.get_export_order()
+
+        # Добавляем данные
         for obj in queryset:
             row = self.export_resource_fields(obj, export_order)
             dataset.append(row)
+
+        # Форматируем Excel если это xlsx формат
         file_format = kwargs.get('file_format', None)
         if file_format and hasattr(file_format, 'get_extension') and file_format.get_extension() == 'xlsx':
             try:
+                # Экспортируем данные в Excel
                 xlsx_data = io.BytesIO()
                 file_format.export_data(dataset, xlsx_data)
                 xlsx_data.seek(0)
+
+                # Загружаем рабочую книгу
                 wb = load_workbook(xlsx_data)
                 ws = wb.active
+
+                # Форматируем заголовки
+                header_fill = PatternFill(start_color='E6E6E6', end_color='E6E6E6', fill_type='solid')
                 for idx, cell in enumerate(ws[1], 1):
                     cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-                    cell.font = Font(bold=True)
+                    cell.font = Font(bold=True, size=11)
+                    cell.fill = header_fill
+
+                    # Устанавливаем ширину колонок
                     column = get_column_letter(idx)
-                    ws.column_dimensions[column].width = min(50, max(15, len(str(cell.value)) + 5))
+                    max_length = len(str(cell.value))
+
+                    # Проверяем длину данных в колонке
+                    for row in range(2, ws.max_row + 1):
+                        cell_value = str(ws[f"{column}{row}"].value or "")
+                        max_length = max(max_length, len(cell_value))
+
+                    # Устанавливаем ширину с ограничениями
+                    adjusted_width = min(50, max(12, max_length + 2))
+                    ws.column_dimensions[column].width = adjusted_width
+
+                # Форматируем данные
+                for row in ws.iter_rows(min_row=2):
+                    for cell in row:
+                        cell.alignment = Alignment(vertical='center', wrap_text=True)
+
+                # Сохраняем отформатированный файл
                 output = io.BytesIO()
                 wb.save(output)
                 output.seek(0)
+
+                # Создаем новый dataset с отформатированными данными
                 formatted_dataset = tablib.Dataset()
                 formatted_dataset.xlsx = output.getvalue()
                 dataset = formatted_dataset
+
             except Exception as e:
                 print(f"Error during Excel formatting: {str(e)}")
-        end_time = time.time()
+
         self.after_export(queryset, dataset, *args, **kwargs)
         return dataset
 

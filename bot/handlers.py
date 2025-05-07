@@ -15,9 +15,11 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from asgiref.sync import sync_to_async
 from django.contrib.admin.sites import site
 from django.utils import timezone
+from import_export.formats.base_formats import XLSX
 
 from app.admin import SurveySubmissionAdmin
 from app.models import Response, SurveySubmission, Question
+from app.resource import SurveySubmissionResource
 from bot.filters import SurveyFilter
 from bot.keyboards import (
     get_filters_menu,
@@ -702,17 +704,17 @@ async def show_results(message: types.Message | types.Message, state: FSMContext
 def perform_export(queryset):
     """Perform export in synchronous context."""
     try:
-        admin = SurveySubmissionAdmin(SurveySubmission, site)
-        formats = admin.get_export_formats()
-        file_format = formats[0]()  # Use first available format (usually xlsx)
+        # Используем наш улучшенный SurveySubmissionResource
+        resource = SurveySubmissionResource()
+        file_format = XLSX()
         
         # Create temporary file
         with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as temp_file:
             filename = temp_file.name
             
-            # Convert export data to bytes if needed
-            export_data = admin.get_data_for_export(None, queryset)
-            export_bytes = file_format.export_data(export_data)
+            # Экспортируем данные с форматированием
+            dataset = resource.export(queryset, file_format=file_format)
+            export_bytes = dataset.xlsx
             if isinstance(export_bytes, str):
                 export_bytes = export_bytes.encode('utf-8')
                 
