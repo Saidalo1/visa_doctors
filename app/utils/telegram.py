@@ -298,13 +298,16 @@ async def handle_comment_callback(callback_query: CallbackQuery, state: FSMConte
             data = await state.get_data()
             original_message = data.get('original_message')
             
-            if original_message:
-                keyboard = await create_submission_keyboard(submission_id)
-                await callback_query.message.edit_text(
-                    original_message,
-                    reply_markup=keyboard,
-                    parse_mode='Markdown'
-                )
+            # If state is lost (e.g. after bot restart), regenerate the message
+            if not original_message:
+                original_message = await format_submission_notification(submission_id)
+            
+            keyboard = await create_submission_keyboard(submission_id)
+            await callback_query.message.edit_text(
+                original_message,
+                reply_markup=keyboard,
+                parse_mode='Markdown'
+            )
             
             await state.clear()
             await callback_query.answer()
