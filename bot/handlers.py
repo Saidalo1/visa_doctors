@@ -7,6 +7,7 @@ import tempfile
 from datetime import datetime
 
 from aiogram import types
+from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import FSInputFile
@@ -1124,7 +1125,8 @@ async def process_value_input(message: types.Message, state: FSMContext):
                     message_id=original_message,
                     text=message_text,
                     reply_markup=keyboard,
-                    parse_mode='Markdown'
+                    parse_mode=ParseMode.HTML,
+                    disable_web_page_preview=True
                 )
                 
                 await state.clear()

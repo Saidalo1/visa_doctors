@@ -1,8 +1,10 @@
 """Telegram notification functionality."""
 import asyncio
 import logging
+import html
 import threading
 from asgiref.sync import sync_to_async
+
 from aiogram import Bot
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from aiogram.enums import ParseMode
@@ -80,8 +82,9 @@ async def send_telegram_message(message: str, submission_id: int = None) -> bool
         await bot.send_message(
             chat_id=chat_id,
             text=message,
-            parse_mode=ParseMode.MARKDOWN,
-            reply_markup=keyboard
+            parse_mode=ParseMode.HTML,
+            reply_markup=keyboard,
+            disable_web_page_preview=True  # Отключаем превью ссылок
         )
         return True
     except Exception as e:
@@ -135,13 +138,13 @@ async def format_submission_notification(submission_id: int) -> str:
 
         # Шапка сообщения
         message_lines = [
-            "*📋 YANGI ARIZA*",
+            "<b>📋 YANGI ARIZA</b>",
             separator,
-            f"*Ariza ID:* #{submission_id}",
-            f"*Vaqt:* {current_time}",
-            f"*Holati:* {submission.get_status_display()}",
+            f"<b>Ariza ID:</b> #{submission_id}",
+            f"<b>Vaqt:</b> {current_time}",
+            f"<b>Holati:</b> {html.escape(submission.get_status_display())}",
             "",
-            "*Ma'lumotlar:*",
+            "<b>Ma'lumotlar:</b>",
             separator
         ]
 
@@ -154,7 +157,9 @@ async def format_submission_notification(submission_id: int) -> str:
 
             # Если это текстовый вопрос
             if response.question.input_type == 'text':
-                message_lines.append(f"""  • *{field_key}:* {response.text_answer or "Ko'rsatilmagan"}""")
+                safe_key = html.escape(field_key)
+                safe_value = html.escape(response.text_answer or "Ko'rsatilmagan")
+                message_lines.append(f"""  • <b>{safe_key}:</b> {safe_value}""")
                 continue
 
             # Список выбранных опций (если это чекбоксы, селекты и т.д.)
@@ -165,44 +170,62 @@ async def format_submission_notification(submission_id: int) -> str:
                 sorted_options = sorted(selected_options, key=lambda opt: opt.parent is None)
 
                 if len(sorted_options) > 1:
-                    message_lines.append(f"  • *{field_key}:*")
+                    safe_key = html.escape(field_key)
+                    message_lines.append(f"  • <b>{safe_key}:</b>")
                     for option in sorted_options:
                         # Если у опции есть has_custom_input и пользовательский ввод
                         if option.has_custom_input and response.text_answer:
                             if option.parent:
-                                message_lines.append(f"    ◦ {option.parent.text} → {response.text_answer}")
+                                parent_text = html.escape(option.parent.text)
+                                answer_text = html.escape(response.text_answer)
+                                message_lines.append(f"    ◦ {parent_text} → {answer_text}")
                             else:
-                                message_lines.append(f"    ◦ {response.text_answer}")
+                                answer_text = html.escape(response.text_answer)
+                                message_lines.append(f"    ◦ {answer_text}")
                         else:
                             if option.parent:
-                                message_lines.append(f"    ◦ {option.parent.text} → {option.text}")
+                                parent_text = html.escape(option.parent.text)
+                                option_text = html.escape(option.text)
+                                message_lines.append(f"    ◦ {parent_text} → {option_text}")
                             else:
-                                message_lines.append(f"    ◦ {option.text}")
+                                option_text = html.escape(option.text)
+                                message_lines.append(f"    ◦ {option_text}")
                 else:
                     option = sorted_options[0]
                     # Если у опции есть has_custom_input и пользовательский ввод
                     if option.has_custom_input and response.text_answer:
                         if option.parent:
-                            message_lines.append(f"  • *{field_key}:* {option.parent.text} → {response.text_answer}")
+                            safe_key = html.escape(field_key)
+                            parent_text = html.escape(option.parent.text)
+                            answer_text = html.escape(response.text_answer)
+                            message_lines.append(f"  • <b>{safe_key}:</b> {parent_text} → {answer_text}")
                         else:
-                            message_lines.append(f"  • *{field_key}:* {response.text_answer}")
+                            safe_key = html.escape(field_key)
+                            answer_text = html.escape(response.text_answer)
+                            message_lines.append(f"  • <b>{safe_key}:</b> {answer_text}")
                     else:
                         if option.parent:
-                            message_lines.append(f"  • *{field_key}:* {option.parent.text} → {option.text}")
+                            safe_key = html.escape(field_key)
+                            parent_text = html.escape(option.parent.text)
+                            option_text = html.escape(option.text)
+                            message_lines.append(f"  • <b>{safe_key}:</b> {parent_text} → {option_text}")
                         else:
-                            message_lines.append(f"  • *{field_key}:* {option.text}")
+                            safe_key = html.escape(field_key)
+                            option_text = html.escape(option.text)
+                            message_lines.append(f"  • <b>{safe_key}:</b> {option_text}")
 
             # Если пользователь ничего не выбрал
             else:
-                message_lines.append(f"  • *{field_key}:* Ko'rsatilmagan")
+                safe_key = html.escape(field_key)
+                message_lines.append(f"  • <b>{safe_key}:</b> Ko'rsatilmagan")
 
         # Добавляем комментарий, если он есть
         if submission.comment:
             message_lines.extend([
                 "",
-                "*💬 Izoh:*",
+                "<b>💬 Izoh:</b>",
                 separator,
-                f"{submission.comment}"
+                html.escape(submission.comment)
             ])
 
         # Добавим нижнюю разделительную линию
@@ -210,14 +233,14 @@ async def format_submission_notification(submission_id: int) -> str:
 
         # Закрывающее сообщение
         message_lines.append("")
-        message_lines.append("_Batafsil ma'lumot uchun admin panelni tekshiring._")
+        message_lines.append("<i>Batafsil ma'lumot uchun admin panelni tekshiring.</i>")
 
         return "\n".join(message_lines)
 
     except Exception as e:
         logger.error(f"Error formatting submission notification: {e}")
         return (
-            f"*🔔 YANGI ARIZA #{submission_id}*\n\n"
+            f"<b>🔔 YANGI ARIZA #{submission_id}</b>\n\n"
             "Yangi ariza kelib tushdi. "
             "Batafsil ma'lumot uchun admin panelni tekshiring."
         )
@@ -346,7 +369,8 @@ async def handle_comment_callback(callback_query: CallbackQuery, state: FSMConte
             await callback_query.message.edit_text(
                 message_text,
                 reply_markup=keyboard,
-                parse_mode='Markdown'
+                parse_mode=ParseMode.HTML,
+                disable_web_page_preview=True
             )
             
             await state.clear()
@@ -359,61 +383,57 @@ async def handle_comment_callback(callback_query: CallbackQuery, state: FSMConte
 
 async def handle_status_callback(callback_query: CallbackQuery, state: FSMContext):
     """Handle status selection and update callbacks."""
-    try:
-        # Get action and parameters
-        action, *params = callback_query.data.split(':')
-        
-        if action == 'show_status':
-            # Показываем меню выбора статуса
-            submission_id = int(params[0])
-            keyboard = await create_status_selection_keyboard(submission_id, state)
-            await callback_query.message.edit_reply_markup(reply_markup=keyboard)
-            
-        elif action == 'select_status':
-            # Сохраняем выбранный статус во временное хранилище и обновляем клавиатуру
-            submission_id, new_status = params
-            await state.update_data(**{f'temp_status_{submission_id}': new_status})
-            keyboard = await create_status_selection_keyboard(submission_id, state)
-            await callback_query.message.edit_reply_markup(reply_markup=keyboard)
-            
-        elif action == 'apply_status':
-            # Применяем выбранный статус
-            submission_id = int(params[0])
-            data = await state.get_data()
-            new_status = data.get(f'temp_status_{submission_id}')
-            
-            if new_status:
-                # Обновляем статус в базе данных
-                await get_submission_and_update_status(submission_id, new_status)
-                
-                # Обновляем сообщение
-                message = await format_submission_notification(submission_id)
-                keyboard = await create_submission_keyboard(submission_id)
-                
-                await callback_query.message.edit_text(
-                    text=message,
-                    parse_mode=ParseMode.MARKDOWN,
-                    reply_markup=keyboard
-                )
-                
-                # Очищаем временное хранилище
-                await state.update_data(**{f'temp_status_{submission_id}': None})
-                await callback_query.answer("Status yangilandi")
-            else:
-                await callback_query.answer("Iltimos, avval statusni tanlang")
-                
-        elif action == 'back_to_main':
-            # Возвращаемся к основному меню
-            submission_id = int(params[0])
+    # try:
+    # Get action and parameters
+    action, *params = callback_query.data.split(':')
+
+    if action == 'show_status':
+        # Показываем меню выбора статуса
+        submission_id = int(params[0])
+        keyboard = await create_status_selection_keyboard(submission_id, state)
+        await callback_query.message.edit_reply_markup(reply_markup=keyboard)
+
+    elif action == 'select_status':
+        # Сохраняем выбранный статус во временное хранилище и обновляем клавиатуру
+        submission_id, new_status = params
+        await state.update_data(**{f'temp_status_{submission_id}': new_status})
+        keyboard = await create_status_selection_keyboard(submission_id, state)
+        await callback_query.message.edit_reply_markup(reply_markup=keyboard)
+
+    elif action == 'apply_status':
+        # Применяем выбранный статус
+        submission_id = int(params[0])
+        data = await state.get_data()
+        new_status = data.get(f'temp_status_{submission_id}')
+
+        if new_status:
+            # Обновляем статус в базе данных
+            await get_submission_and_update_status(submission_id, new_status)
+
+            # Обновляем сообщение
+            message = await format_submission_notification(submission_id)
             keyboard = await create_submission_keyboard(submission_id)
-            await callback_query.message.edit_reply_markup(reply_markup=keyboard)
-            
+
+
+
             # Очищаем временное хранилище
             await state.update_data(**{f'temp_status_{submission_id}': None})
-            
-    except Exception as e:
-        logger.error(f"Failed to handle status callback: {e}")
-        await callback_query.answer("Status yangilashda xatolik yuz berdi")
+            await callback_query.answer("Status yangilandi")
+        else:
+            await callback_query.answer("Iltimos, avval statusni tanlang")
+
+    elif action == 'back_to_main':
+        # Возвращаемся к основному меню
+        submission_id = int(params[0])
+        keyboard = await create_submission_keyboard(submission_id)
+        await callback_query.message.edit_reply_markup(reply_markup=keyboard)
+
+        # Очищаем временное хранилище
+        await state.update_data(**{f'temp_status_{submission_id}': None})
+
+    # except Exception as e:
+    #     logger.error(f"Failed to handle status callback: {e}")
+    #     await callback_query.answer("Status yangilashda xatolik yuz berdi")
 
 
 @sync_to_async
