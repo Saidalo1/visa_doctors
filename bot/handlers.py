@@ -897,14 +897,7 @@ async def process_calendar_callback(callback_query: types.CallbackQuery, state: 
         logger.debug(f"Selected filter: {selected_filter}")
         logger.debug(f"Is selecting end date: {is_selecting_end_date}")
         
-        if not selected_filter:
-            await callback_query.answer("❌ Фильтр не выбран")
-            return
-            
-        filter_manager = SurveyFilter(filter_state)
-        field = selected_filter['id']
-        
-        # Handle back to filters
+        # Handle back to filters - check it firstly!
         if callback_query.data == "back_to_filters":
             logger.debug("Processing back to filters")
             # Clear current filter and selected values
@@ -917,6 +910,7 @@ async def process_calendar_callback(callback_query: types.CallbackQuery, state: 
             )
             
             # Show main filters menu
+            filter_manager = SurveyFilter(filter_state)
             filters = await filter_manager.get_available_filters()
             active_filters = await filter_manager.get_active_filters()
             
@@ -936,6 +930,14 @@ async def process_calendar_callback(callback_query: types.CallbackQuery, state: 
                     raise
             return
             
+        # Проверка на наличие выбранного фильтра (только после обработки back_to_filters)
+        if not selected_filter:
+            await callback_query.answer("❌ Фильтр не выбран")
+            return
+            
+        filter_manager = SurveyFilter(filter_state)
+        field = selected_filter['id']
+        
         # Handle select month (double click)
         if callback_query.data.startswith("select_month-"):
             logger.debug("Processing month selection for entire month")

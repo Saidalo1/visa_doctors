@@ -12,6 +12,7 @@ from django.utils import timezone
 
 from app.models import SurveySubmission, Response
 from bot.states import FilterStates
+from app.utils.db_reconnect import with_db_reconnect, with_db_reconnect_async
 
 logger = logging.getLogger(__name__)
 
@@ -279,6 +280,7 @@ def get_submission_by_id(submission_id: int) -> 'SurveySubmission':
 
 
 @sync_to_async
+@with_db_reconnect(max_attempts=3, backoff_time=0.5)
 def get_submission_and_update_status(submission_id: int, new_status: str = None, comment: str = None) -> 'SurveySubmission':
     """
     Получает объект заявки и обновляет его статус или комментарий.
