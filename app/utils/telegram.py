@@ -383,57 +383,62 @@ async def handle_comment_callback(callback_query: CallbackQuery, state: FSMConte
 
 async def handle_status_callback(callback_query: CallbackQuery, state: FSMContext):
     """Handle status selection and update callbacks."""
-    # try:
-    # Get action and parameters
-    action, *params = callback_query.data.split(':')
+    try:
+        # Get action and parameters
+        action, *params = callback_query.data.split(':')
 
-    if action == 'show_status':
-        # Показываем меню выбора статуса
-        submission_id = int(params[0])
-        keyboard = await create_status_selection_keyboard(submission_id, state)
-        await callback_query.message.edit_reply_markup(reply_markup=keyboard)
+        if action == 'show_status':
+            # Показываем меню выбора статуса
+            submission_id = int(params[0])
+            keyboard = await create_status_selection_keyboard(submission_id, state)
+            await callback_query.message.edit_reply_markup(reply_markup=keyboard)
 
-    elif action == 'select_status':
-        # Сохраняем выбранный статус во временное хранилище и обновляем клавиатуру
-        submission_id, new_status = params
-        await state.update_data(**{f'temp_status_{submission_id}': new_status})
-        keyboard = await create_status_selection_keyboard(submission_id, state)
-        await callback_query.message.edit_reply_markup(reply_markup=keyboard)
+        elif action == 'select_status':
+            # Сохраняем выбранный статус во временное хранилище и обновляем клавиатуру
+            submission_id, new_status = params
+            await state.update_data(**{f'temp_status_{submission_id}': new_status})
+            keyboard = await create_status_selection_keyboard(submission_id, state)
+            await callback_query.message.edit_reply_markup(reply_markup=keyboard)
 
-    elif action == 'apply_status':
-        # Применяем выбранный статус
-        submission_id = int(params[0])
-        data = await state.get_data()
-        new_status = data.get(f'temp_status_{submission_id}')
+        elif action == 'apply_status':
+            # Применяем выбранный статус
+            submission_id = int(params[0])
+            data = await state.get_data()
+            new_status = data.get(f'temp_status_{submission_id}')
 
-        if new_status:
-            # Обновляем статус в базе данных
-            await get_submission_and_update_status(submission_id, new_status)
+            if new_status:
+                # Обновляем статус в базе данных
+                await get_submission_and_update_status(submission_id, new_status)
 
-            # Обновляем сообщение
-            message = await format_submission_notification(submission_id)
+                # Обновляем сообщение
+                message = await format_submission_notification(submission_id)
+                keyboard = await create_submission_keyboard(submission_id)
+
+                await callback_query.message.edit_text(
+                    text=message,
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=keyboard,
+                    disable_web_page_preview=True
+                )
+
+                # Очищаем временное хранилище
+                await state.update_data(**{f'temp_status_{submission_id}': None})
+                await callback_query.answer("Status yangilandi")
+            else:
+                await callback_query.answer("Iltimos, avval statusni tanlang")
+
+        elif action == 'back_to_main':
+            # Возвращаемся к основному меню
+            submission_id = int(params[0])
             keyboard = await create_submission_keyboard(submission_id)
-
-
+            await callback_query.message.edit_reply_markup(reply_markup=keyboard)
 
             # Очищаем временное хранилище
             await state.update_data(**{f'temp_status_{submission_id}': None})
-            await callback_query.answer("Status yangilandi")
-        else:
-            await callback_query.answer("Iltimos, avval statusni tanlang")
 
-    elif action == 'back_to_main':
-        # Возвращаемся к основному меню
-        submission_id = int(params[0])
-        keyboard = await create_submission_keyboard(submission_id)
-        await callback_query.message.edit_reply_markup(reply_markup=keyboard)
-
-        # Очищаем временное хранилище
-        await state.update_data(**{f'temp_status_{submission_id}': None})
-
-    # except Exception as e:
-    #     logger.error(f"Failed to handle status callback: {e}")
-    #     await callback_query.answer("Status yangilashda xatolik yuz berdi")
+    except Exception as e:
+        logger.error(f"Failed to handle status callback: {e}")
+        await callback_query.answer("Status yangilashda xatolik yuz berdi")
 
 
 @sync_to_async
