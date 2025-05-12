@@ -12,7 +12,7 @@ from aiogram.fsm.context import FSMContext
 from django.conf import settings
 from django.utils import timezone
 
-from app.models import SurveySubmission, Response
+from app.models import SurveySubmission, Response, SubmissionStatus
 from bot.states import FilterStates
 from app.utils.db_reconnect import with_db_reconnect, with_db_reconnect_async
 
@@ -142,7 +142,7 @@ async def format_submission_notification(submission_id: int) -> str:
             separator,
             f"<b>Ariza ID:</b> #{submission_id}",
             f"<b>Vaqt:</b> {current_time}",
-            f"<b>Holati:</b> {html.escape(submission.get_status_display())}",
+            f"<b>Holati:</b> {html.escape(submission.status.code)}",
             "",
             "<b>Ma'lumotlar:</b>",
             separator
@@ -310,18 +310,23 @@ def get_submission_and_update_status(submission_id: int, new_status: str = None,
     
     Args:
         submission_id: ID заявки
-        new_status: Новый статус (опционально)
+        new_status: Код нового статуса (опционально)
         comment: Новый комментарий (опционально)
         
     Returns:
         SurveySubmission: Обновленный объект заявки
     """
-    submission = SurveySubmission.objects.get(id=submission_id)
+    submission = SurveySubmission.objects.select_related('status').get(id=submission_id)
     update_fields = []
     
     if new_status:
-        submission.status = new_status
-        update_fields.append('status')
+        try:
+            status_obj = SubmissionStatus.objects.get(code=new_status)
+            submission.status = status_obj
+            update_fields.append('status')
+        except SubmissionStatus.DoesNotExist:
+            logger.error(f"Status with code '{new_status}' not found")
+            raise ValueError(f"Status with code '{new_status}' not found")
         
     if comment is not None:
         submission.comment = comment
@@ -453,7 +458,7 @@ def get_submission_status(submission_id: int) -> str:
         str: Текущий статус заявки
     """
     submission = SurveySubmission.objects.get(id=submission_id)
-    return submission.get_status_display()
+    return submission.status.name  # Используем name вместо самого объекта
 
 
 async def create_submission_keyboard(submission_id: int) -> InlineKeyboardMarkup:
@@ -485,6 +490,11 @@ async def create_submission_keyboard(submission_id: int) -> InlineKeyboardMarkup
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
+@sync_to_async
+def get_all_statuses():
+    """Получает все статусы из базы данных."""
+    return list(SubmissionStatus.objects.values_list('code', 'name'))
+
 async def create_status_selection_keyboard(submission_id: int, state) -> InlineKeyboardMarkup:
     """
     Создает клавиатуру для выбора статуса.
@@ -500,16 +510,17 @@ async def create_status_selection_keyboard(submission_id: int, state) -> InlineK
     data = await state.get_data()
     selected_status = data.get(f'temp_status_{submission_id}')
     
-    # Получаем все статусы
+    # Получаем все статусы асинхронно
+    statuses = await get_all_statuses()
     keyboard = []
     
     # Добавляем кнопки для каждого статуса
-    for status_value, status_label in SurveySubmission.Status.choices:
+    for status_code, status_name in statuses:
         # Добавляем маркер к выбранному статусу
-        label = f"✓ {str(status_label)}" if status_value == selected_status else str(status_label)
+        label = f"✓ {status_name}" if status_code == selected_status else status_name
         keyboard.append([InlineKeyboardButton(
             text=label,
-            callback_data=f"select_status:{submission_id}:{status_value}"
+            callback_data=f"select_status:{submission_id}:{status_code}"
         )])
     
     # Добавляем кнопки "Готово" и "Назад"

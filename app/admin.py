@@ -1,5 +1,5 @@
 from adminsortable2.admin import SortableAdminBase
-from django.contrib.admin import register, ModelAdmin
+from django.contrib.admin import register, ModelAdmin, site
 from django.utils.http import urlencode
 from django.utils.translation import gettext_lazy as _
 from import_export.admin import ImportExportModelAdmin
@@ -16,9 +16,11 @@ except ImportError:
 
 from app.models import (
     About, VisaType, ResultCategory, Result, ContactInfo, UniversityLogo, Question, AnswerOption, SurveySubmission,
-    InputFieldType
+    InputFieldType, SubmissionStatus
 )
 from app.resource import QuestionResource, InputFieldTypeResource, SurveySubmissionResource, AnswerOptionResource
+
+
 from shared.django.admin import (
     AboutHighlightInline, VisaDocumentInline,
     AnswerOptionInline, CustomSortableAdminMixin, ResponseInline
@@ -94,7 +96,7 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
         'get_phone_number',
         'get_language_certificate',
         'get_field_of_study',
-        'status',
+        'get_status_display',
         'source', 
         'comment',
         'created_at', 
@@ -270,17 +272,22 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
             return '-'
     get_field_of_study.short_description = _('Field of Study')
 
+    def get_status_display(self, obj):
+        """Отображает название статуса из связанной модели SubmissionStatus"""
+        return obj.status.name
+    get_status_display.short_description = _('Status')
+    
     def changelist_view(self, request, extra_context=None):
         """Фильтр 'new' ставится по умолчанию, но если пользователь убрал его вручную — не навязываем снова."""
 
         # Если фильтр статуса отсутствует, но другие GET-параметры есть → юзер сам убрал фильтр
-        if "status__exact" not in request.GET and request.GET:
+        if "status__code__exact" not in request.GET and request.GET:
             return super().changelist_view(request, extra_context)
 
         # Если в GET-запросе вообще нет параметров → значит, это первый заход, ставим статус "new"
         if not request.GET:
             q = request.GET.copy()
-            q["status__exact"] = "new"
+            q["status__code__exact"] = "new"
             return HttpResponseRedirect(f"{request.path}?{q.urlencode()}")
 
         return super().changelist_view(request, extra_context)
@@ -354,3 +361,36 @@ class InputFieldTypeAdmin(ImportExportModelAdmin, TranslationAdmin):
 #     list_filter = ['question', 'created_at']
 #     search_fields = ['text_answer']
 #     date_hierarchy = 'created_at'
+
+
+@register(SubmissionStatus)
+class SubmissionStatusAdmin(ImportExportModelAdmin, CustomSortableAdminMixin, TranslationAdmin):
+    """Admin interface for SubmissionStatus model."""
+    list_display = [
+        'name', 'code', 'color', 'is_default', 'is_final', 'active', 'created_at', 'order'
+    ]
+    list_filter = ['is_default', 'is_final', 'active', 'created_at']
+    search_fields = ['name', 'code', 'description']
+    list_editable = ['order', 'color', 'is_default', 'is_final', 'active']
+    readonly_fields = ['created_at', 'updated_at']
+    fieldsets = [
+        (None, {
+            'fields': ('name', 'code', 'description', 'color')
+        }),
+        (_('Status Behavior'), {
+            'fields': ('is_default', 'is_final', 'active')
+        }),
+        (_('Display Options'), {
+            'fields': ('order',)
+        }),
+        (_('System Information'), {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    ]
+
+    class Media:
+        css = {
+            'all': ['admin/css/status_colors.css']
+        }
+        js = ['admin/js/status_colors.js']

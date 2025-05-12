@@ -9,7 +9,7 @@ from typing import List, Dict, Any, Optional
 from asgiref.sync import sync_to_async
 from django.db.models import Q, QuerySet
 
-from app.models import SurveySubmission, Question, AnswerOption
+from app.models import SurveySubmission, Question, SubmissionStatus, AnswerOption
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -104,8 +104,18 @@ class SurveyFilter:
         
         # Add status filters if set
         if self._status_filters:
-            status_choices = dict(SurveySubmission.Status.choices)
-            status_values = [str(status_choices[status]) for status in self._status_filters]
+            # Используем безопасный способ получения статусов
+            from app.models import SubmissionStatus
+            status_values = []
+            # Этот код уже выполняется в синхронном контексте (благодаря sync_to_async)
+            # Поэтому мы можем безопасно использовать поля
+            for status_code in self._status_filters:
+                try:
+                    status = SubmissionStatus.objects.get(code=status_code)
+                    status_values.append(status.name)
+                except SubmissionStatus.DoesNotExist:
+                    status_values.append(status_code)
+            
             active_filters.append({
                 'name': 'Статус',
                 'value': ', '.join(status_values)
@@ -233,7 +243,8 @@ class SurveyFilter:
             
         # Apply status filters if present
         if self._status_filters:
-            queryset = queryset.filter(status__in=self._status_filters)
+            # Используем поле status, которое теперь связано с моделью SubmissionStatus
+            queryset = queryset.filter(status__code__in=self._status_filters)
             
         # Apply response filters
         for question_id, filters in self._response_filters_data.items():
@@ -281,7 +292,8 @@ class SurveyFilter:
                 'id': 'status',
                 'name': 'Статус',
                 'type': 'status',
-                'choices': dict((key, str(value)) for key, value in SurveySubmission.Status.choices)
+                'choices': {status.code: status.name for status in SubmissionStatus.objects.filter(active=True).order_by('order')}
+            # Этот код выполняется в синхронном контексте благодаря декоратору @sync_to_async
             }
         ]
         

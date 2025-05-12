@@ -1,7 +1,7 @@
 """Models for survey functionality."""
 
 from django.db.models import (
-    CharField, TextField, PositiveIntegerField, ForeignKey, CASCADE,
+    CharField, TextField, PositiveIntegerField, ForeignKey, CASCADE, PROTECT,
     TextChoices, ManyToManyField, UniqueConstraint, BooleanField
 )
 from django.utils.translation import gettext_lazy as _
@@ -131,7 +131,7 @@ class AnswerOption(MPTTModel, BaseModel):
 class SurveySubmission(BaseModel):
     """Survey submission model."""
 
-    class Status(TextChoices):
+    class StatusChoices(TextChoices):
         """Status choices for survey submission."""
         NEW = 'new', _('New')
         IN_PROGRESS = 'in_progress', _('In Progress')
@@ -152,11 +152,14 @@ class SurveySubmission(BaseModel):
         TIKTOK = 'tiktok', _('TikTok')
         OTHER = 'other', _('Other')
 
-    status = CharField(
-        _('Status'),
-        max_length=20,
-        choices=Status.choices,
-        default=Status.NEW
+    # Поле status теперь связано с моделью SubmissionStatus вместо использования фиксированных вариантов
+    status = ForeignKey(
+        'app.SubmissionStatus',
+        verbose_name=_('Status'),
+        on_delete=PROTECT,  # Защита от удаления используемых статусов
+        related_name='submissions',
+        to_field='code',  # Связь по коду статуса для совместимости с существующим кодом
+        help_text=_('Статус заявки')
     )
 
     source = CharField(
@@ -179,7 +182,7 @@ class SurveySubmission(BaseModel):
         verbose_name_plural = _('Survey Submissions')
 
     def __str__(self):
-        return f"Submission {self.id} - {self.get_status_display()}"
+        return f"Submission {self.id} - {self.status}"
 
 
 class Response(BaseModel):

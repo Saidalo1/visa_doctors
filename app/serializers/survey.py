@@ -134,7 +134,30 @@ class SurveySubmissionSerializer(ModelSerializer):
     
     def create(self, validated_data):
         """Create survey submission with responses."""
+        from app.models.status import SubmissionStatus
+        
+        # Получаем данные ответов из validated_data
         responses_data = validated_data.pop('responses')
+        
+        # Проверяем, указан ли статус, если нет - используем статус по умолчанию
+        if 'status' not in validated_data:
+            try:
+                # Пытаемся найти статус по умолчанию
+                default_status = SubmissionStatus.objects.get(is_default=True)
+                validated_data['status'] = default_status
+            except SubmissionStatus.DoesNotExist:
+                # Если статус по умолчанию не найден, ищем статус с кодом 'new'
+                try:
+                    default_status = SubmissionStatus.objects.get(code='new')
+                    validated_data['status'] = default_status
+                except SubmissionStatus.DoesNotExist:
+                    # Если ни один из статусов не найден, берем первый статус
+                    default_status = SubmissionStatus.objects.first()
+                    if default_status is None:
+                        raise ValidationError(_("Не найден ни один статус для заявки"))
+                    validated_data['status'] = default_status
+        
+        # Создаем запись заявки
         submission = SurveySubmission.objects.create(**validated_data)
         
         # Create responses
@@ -147,9 +170,5 @@ class SurveySubmissionSerializer(ModelSerializer):
                 response.selected_options.set(selected_options)
 
         notify_new_submission_async(submission_id=submission.id)
-
-        # После сохранения всех ответов, меняем статус на COMPLETED
-        # submission.status = SurveySubmission.Status.COMPLETED
-        # submission.save(update_fields=['status'])
         
         return submission

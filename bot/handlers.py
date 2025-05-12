@@ -559,8 +559,25 @@ def check_submissions_empty(queryset):
 
 @sync_to_async
 def convert_queryset_to_list(queryset):
-    """Convert queryset to list in synchronous context."""
-    return list(queryset)
+    """Convert queryset to list in synchronous context and add status data."""
+    # Получаем список объектов из QuerySet
+    submissions_list = list(queryset)
+    
+    # Перебираем объекты и добавляем информацию о статусе безопасным для асинхронного доступа способом
+    for sub in submissions_list:
+        try:
+            # Если статус - это ForeignKey на SubmissionStatus
+            if hasattr(sub, 'status') and sub.status is not None:
+                # Сохраняем код статуса как атрибут объекта
+                sub.status_code = getattr(sub.status, 'code', None)
+                # Сохраняем имя статуса как атрибут объекта
+                sub.status_name = getattr(sub.status, 'name', None)
+        except Exception:
+            # В случае ошибки установим неизвестный статус
+            sub.status_code = 'unknown'
+            sub.status_name = 'Неизвестный статус'
+    
+    return submissions_list
 
 
 async def show_results(message: types.Message | types.Message, state: FSMContext, edit_message: bool = False):
@@ -639,11 +656,24 @@ async def show_results(message: types.Message | types.Message, state: FSMContext
             name = submission_names.get(sub.id, "Нет данных")
             # Make naive datetime timezone-aware
             created_at = timezone.make_aware(sub.created_at) if timezone.is_naive(sub.created_at) else sub.created_at
+            
+            # Получаем имя статуса безопасным способом
+            # Вместо прямого доступа к sub.status, используем значение статуса из записи
+            status_name = getattr(sub, 'status_name', None)
+            if status_name is None and hasattr(sub, 'status_id'):
+                # Если нет status_name, но есть status_id, используем просто id статуса
+                status_name = f"Status: {sub.status_id}"
+            elif status_name is None and hasattr(sub, 'status_code'):
+                # Если есть код статуса, используем его
+                status_name = getattr(sub, 'status_code', "Unknown")
+            else:
+                status_name = "Unknown"
+            
             results.append(
                 f"📝 Заявка #{sub.id}\n"
                 f"👤 Имя: {name}\n"
                 f"📅 Создана: {timezone.localtime(created_at).strftime('%d.%m.%Y %H:%M')}\n"
-                f"📊 Статус: {sub.get_status_display()}\n"
+                f"📊 Статус: {status_name}\n"
             )
 
         # Add active filters to message

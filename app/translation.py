@@ -3,7 +3,7 @@ from modeltranslation.translator import register, TranslationOptions
 
 from app.models import (
     About, AboutHighlight, VisaType, VisaDocument, ResultCategory, ContactInfo, UniversityLogo, Question, AnswerOption,
-    InputFieldType
+    InputFieldType, SubmissionStatus
 )
 
 
@@ -11,6 +11,11 @@ from app.models import (
 class AboutTranslationOptions(TranslationOptions):
     """Translation options for About model."""
     fields = 'title', 'subtitle', 'description', 'experience_years'
+
+@register(SubmissionStatus)
+class SubmissionStatusTranslationOptions(TranslationOptions):
+    """Translation options for SubmissionStatus model."""
+    fields = 'name',
 
 
 @register(AboutHighlight)
