@@ -58,14 +58,14 @@ class ResponseSerializer(ModelSerializer):
         selected_options = attrs.get('selected_options', [])
         text_answer = attrs.get('text_answer', '')
         
-        # Проверяем, есть ли ответ в зависимости от типа вопроса
+        # Check if there is an answer depending on the question type
         if question.input_type == Question.InputType.TEXT and question.is_required and not text_answer:
             raise ValidationError({'text_answer': _('Text answer is required for this question.')})
         
         if question.input_type != Question.InputType.TEXT and not selected_options:
             raise ValidationError({'selected_options': _('At least one option must be selected for this question.')})
         
-        # Для вопросов с вариантами ответов проверяем на существование custom input
+        # For questions with answer options, check if custom input exists
         if selected_options:
             custom_input_required = any(opt.has_custom_input for opt in selected_options)
             if custom_input_required and not text_answer:
@@ -73,7 +73,7 @@ class ResponseSerializer(ModelSerializer):
                     'text_answer': _('Text answer is required for the selected option.')
                 })
                 
-            # Проверяем, что все опции принадлежат данному вопросу
+            # Check that all options belong to this question
             for option in selected_options:
                 if option.question_id != question.id:
                     raise ValidationError({
@@ -82,11 +82,11 @@ class ResponseSerializer(ModelSerializer):
                         )
                     })
 
-        # Проверка regex-валидации, если у вопроса есть field_type с регулярным выражением
+        # Check regex validation if the question has a field_type with a regular expression
         if (
                 question.input_type == Question.InputType.TEXT
                 and question.field_type
-                and question.field_type.regex_pattern.strip()  # Проверяем, что regex не пустой
+                and question.field_type.regex_pattern.strip()  # Check that regex is not empty
         ):
             pattern = question.field_type.regex_pattern
             if not re.fullmatch(pattern, text_answer):
@@ -109,14 +109,14 @@ class SurveySubmissionSerializer(ModelSerializer):
     
     def validate_responses(self, responses):
         """Validate that all required questions have responses."""
-        # Получаем ID всех вопросов в ответах
+        # Get IDs of all questions in the responses
         question_ids = [response['question'].id for response in responses]
         
-        # Получаем список всех обязательных вопросов
+        # Get a list of all required questions
         required_questions = Question.objects.filter(is_required=True)
         required_question_ids = set(required_questions.values_list('id', flat=True))
         
-        # Проверяем, что все обязательные вопросы имеют ответы
+        # Check that all required questions have answers
         missing_question_ids = required_question_ids - set(question_ids)
         if missing_question_ids:
             missing_questions = [
@@ -126,7 +126,7 @@ class SurveySubmissionSerializer(ModelSerializer):
                 ', '.join(missing_questions)
             ))
         
-        # Проверяем, что нет повторяющихся вопросов
+        # Check that there are no duplicate questions
         if len(question_ids) != len(set(question_ids)):
             raise ValidationError(_('Duplicate responses for some questions.'))
         
@@ -136,28 +136,28 @@ class SurveySubmissionSerializer(ModelSerializer):
         """Create survey submission with responses."""
         from app.models.status import SubmissionStatus
         
-        # Получаем данные ответов из validated_data
+        # Get response data from validated_data
         responses_data = validated_data.pop('responses')
         
-        # Проверяем, указан ли статус, если нет - используем статус по умолчанию
+        # Check if status is specified, if not - use default status
         if 'status' not in validated_data:
             try:
-                # Пытаемся найти статус по умолчанию
+                # Try to find the default status
                 default_status = SubmissionStatus.objects.get(is_default=True)
                 validated_data['status'] = default_status
             except SubmissionStatus.DoesNotExist:
-                # Если статус по умолчанию не найден, ищем статус с кодом 'new'
+                # If default status is not found, look for status with code 'new'
                 try:
                     default_status = SubmissionStatus.objects.get(code='new')
                     validated_data['status'] = default_status
                 except SubmissionStatus.DoesNotExist:
-                    # Если ни один из статусов не найден, берем первый статус
+                    # If none of the statuses is found, take the first status
                     default_status = SubmissionStatus.objects.first()
                     if default_status is None:
                         raise ValidationError(_("Не найден ни один статус для заявки"))
                     validated_data['status'] = default_status
         
-        # Создаем запись заявки
+        # Create submission record
         submission = SurveySubmission.objects.create(**validated_data)
         
         # Create responses
@@ -165,7 +165,7 @@ class SurveySubmissionSerializer(ModelSerializer):
             selected_options = response_data.pop('selected_options', [])
             response = Response.objects.create(submission=submission, **response_data)
             
-            # Добавляем выбранные варианты ответа, если есть
+            # Add selected options if any
             if selected_options:
                 response.selected_options.set(selected_options)
 

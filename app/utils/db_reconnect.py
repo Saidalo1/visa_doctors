@@ -19,10 +19,11 @@ def with_db_reconnect(max_attempts=3, backoff_time=0.5):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            # Проверка на наличие активной транзакции
+            # Check for an active transaction
             from django.db import transaction
             if not transaction.get_autocommit():
                 logger.warning(f"Function {func.__name__} called inside transaction, skipping reconnect logic")
+                # Check for an active transaction
                 return func(*args, **kwargs)
                 
             attempt = 0

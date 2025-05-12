@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-07 10:10+0500\n"
+"POT-Creation-Date: 2025-05-12 10:30+0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,6 +16,47 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: app/admin.py:199 app/models/survey.py:207
+msgid "Responses"
+msgstr ""
+
+#: app/admin.py:218
+msgid "Phone Number"
+msgstr ""
+
+#: app/admin.py:237
+msgid "Full Name"
+msgstr ""
+
+#: app/admin.py:255
+msgid "Language Certificate"
+msgstr ""
+
+#: app/admin.py:273
+msgid "Field of Study"
+msgstr ""
+
+#: app/admin.py:278 app/models/survey.py:158 app/resource.py:25
+msgid "Status"
+msgstr ""
+
+#: app/admin.py:334
+msgid "Input Configuration"
+msgstr ""
+
+#: app/admin.py:380
+msgid "Status Behavior"
+msgstr ""
+
+#: app/admin.py:383
+msgid "Display Options"
+msgstr ""
+
+#: app/admin.py:386
+msgid "System Information"
+msgstr ""
+
 #: app/apps.py:7
 msgid "Application"
 msgstr ""
@@ -65,7 +106,7 @@ msgstr ""
 msgid "Subtitle"
 msgstr ""
 
-#: app/models/pages.py:18 app/models/pages.py:86
+#: app/models/pages.py:18 app/models/pages.py:86 app/models/status.py:28
 msgid "Description"
 msgstr ""
 
@@ -88,7 +129,8 @@ msgid "About"
 msgstr ""
 
 #: app/models/pages.py:40 app/models/pages.py:56 app/models/pages.py:71
-#: app/models/pages.py:137 app/models/survey.py:56 app/models/survey.py:87
+#: app/models/pages.py:138 app/models/status.py:39 app/models/survey.py:73
+#: app/models/survey.py:104
 msgid "Order"
 msgstr ""
 
@@ -156,19 +198,19 @@ msgstr ""
 msgid "Address"
 msgstr ""
 
-#: app/models/pages.py:120
+#: app/models/pages.py:120 app/models/survey.py:146
 msgid "Telegram"
 msgstr ""
 
-#: app/models/pages.py:121
+#: app/models/pages.py:121 app/models/survey.py:145
 msgid "Instagram"
 msgstr ""
 
-#: app/models/pages.py:122
+#: app/models/pages.py:122 app/models/survey.py:144
 msgid "Facebook"
 msgstr ""
 
-#: app/models/pages.py:123
+#: app/models/pages.py:123 app/models/survey.py:149
 msgid "YouTube"
 msgstr ""
 
@@ -184,188 +226,401 @@ msgstr ""
 msgid "Logo"
 msgstr ""
 
-#: app/models/pages.py:141
-msgid "University Logo"
+#: app/models/pages.py:137
+msgid "Website URL"
 msgstr ""
 
 #: app/models/pages.py:142
+msgid "University Logo"
+msgstr ""
+
+#: app/models/pages.py:143
 msgid "University Logos"
 msgstr ""
 
-#: app/models/survey.py:17
-msgid "Field Type Name"
+#: app/models/status.py:17
+msgid "Name"
+msgstr ""
+
+#: app/models/status.py:19
+msgid "Name of the status shown to users"
+msgstr ""
+
+#: app/models/status.py:22
+msgid "Code"
+msgstr ""
+
+#: app/models/status.py:25
+msgid "Unique code for programmatic usage"
+msgstr ""
+
+#: app/models/status.py:30
+msgid "Description of the status and when it should be used"
+msgstr ""
+
+#: app/models/status.py:33
+msgid "Color"
+msgstr ""
+
+#: app/models/status.py:36
+msgid "CSS color code for display (e.g., #FF5733)"
+msgstr ""
+
+#: app/models/status.py:41
+msgid "Display order in status lists"
+msgstr ""
+
+#: app/models/status.py:44
+msgid "Is Default"
+msgstr ""
+
+#: app/models/status.py:46
+msgid "Default status for new submissions (only one can be default)"
+msgstr ""
+
+#: app/models/status.py:49
+msgid "Is Final"
+msgstr ""
+
+#: app/models/status.py:51
+msgid "Whether this status is final (submission is closed)"
+msgstr ""
+
+#: app/models/status.py:54
+msgid "Active"
+msgstr ""
+
+#: app/models/status.py:56
+msgid "Whether this status is active for selection"
+msgstr ""
+
+#: app/models/status.py:61
+msgid "Submission Status"
+msgstr ""
+
+#: app/models/status.py:62
+msgid "Submission Statuses"
 msgstr ""
 
 #: app/models/survey.py:19
-msgid "Regular Expression Pattern"
+msgid "String"
+msgstr ""
+
+#: app/models/survey.py:20
+msgid "Number"
 msgstr ""
 
 #: app/models/survey.py:21
-msgid "Regular expression pattern for field validation"
+msgid "Choices"
+msgstr ""
+
+#: app/models/survey.py:23
+msgid "Field Type Name"
 msgstr ""
 
 #: app/models/survey.py:24
-msgid "Error Message"
+msgid "Field key for export"
 msgstr ""
 
-#: app/models/survey.py:26
-msgid "Error message to display when validation fails"
+#: app/models/survey.py:25
+msgid "Short title used in exports"
 msgstr ""
 
-#: app/models/survey.py:30
-msgid "Input Field Type"
+#: app/models/survey.py:27
+msgid "Field type for filtering"
 msgstr ""
 
 #: app/models/survey.py:31
-msgid "Input Field Types"
+msgid "Determines how this field is filtered in exports"
 msgstr ""
 
-#: app/models/survey.py:43 app/models/survey.py:79
-msgid "Text"
+#: app/models/survey.py:34
+msgid "Regular Expression Pattern"
 msgstr ""
 
-#: app/models/survey.py:44
-msgid "Single Choice"
+#: app/models/survey.py:36
+msgid "Regular expression pattern for field validation"
 msgstr ""
 
-#: app/models/survey.py:45
-msgid "Multiple Choice"
+#: app/models/survey.py:40
+msgid "Error Message"
+msgstr ""
+
+#: app/models/survey.py:42
+msgid "Error message to display when validation fails"
+msgstr ""
+
+#: app/models/survey.py:46
+msgid "Input Field Type"
 msgstr ""
 
 #: app/models/survey.py:47
-msgid "Question title"
+msgid "Input Field Types"
 msgstr ""
 
-#: app/models/survey.py:48
-msgid "Placeholder"
+#: app/models/survey.py:59 app/models/survey.py:96
+msgid "Text"
 msgstr ""
 
-#: app/models/survey.py:51
-msgid "Input Type"
+#: app/models/survey.py:60
+msgid "Single Choice"
+msgstr ""
+
+#: app/models/survey.py:61
+msgid "Multiple Choice"
 msgstr ""
 
 #: app/models/survey.py:63
-msgid "Field type for validation (only applicable for text questions)"
+msgid "Question title"
+msgstr ""
+
+#: app/models/survey.py:64
+msgid "Placeholder"
+msgstr ""
+
+#: app/models/survey.py:65
+msgid "Is required"
 msgstr ""
 
 #: app/models/survey.py:68
+msgid "Input Type"
+msgstr ""
+
+#: app/models/survey.py:80
+msgid "Field type for validation (only applicable for text questions)"
+msgstr ""
+
+#: app/models/survey.py:85
 msgid "Question"
 msgstr ""
 
-#: app/models/survey.py:69
+#: app/models/survey.py:86
 msgid "Questions"
 msgstr ""
 
-#: app/models/survey.py:88
+#: app/models/survey.py:105
 msgid "Is Selectable"
 msgstr ""
 
-#: app/models/survey.py:90
+#: app/models/survey.py:107
 msgid "Has Custom Input"
 msgstr ""
 
-#: app/models/survey.py:92
+#: app/models/survey.py:109
 msgid "Allow custom text input for this option"
 msgstr ""
 
-#: app/models/survey.py:97
+#: app/models/survey.py:120
 msgid "Answer Option"
 msgstr ""
 
-#: app/models/survey.py:98
+#: app/models/survey.py:121
 msgid "Answer Options"
 msgstr ""
 
-#: app/models/survey.py:113
+#: app/models/survey.py:136
 msgid "New"
 msgstr ""
 
-#: app/models/survey.py:114
+#: app/models/survey.py:137
 msgid "In Progress"
 msgstr ""
 
-#: app/models/survey.py:115
+#: app/models/survey.py:138
 msgid "Completed"
 msgstr ""
 
-#: app/models/survey.py:116
+#: app/models/survey.py:139
 msgid "Rejected"
 msgstr ""
 
-#: app/models/survey.py:119
-msgid "Status"
-msgstr ""
-
-#: app/models/survey.py:126
-msgid "Survey Submission"
-msgstr ""
-
-#: app/models/survey.py:127
-msgid "Survey Submissions"
-msgstr ""
-
 #: app/models/survey.py:143
-msgid "Selected options"
+msgid "Website"
+msgstr ""
+
+#: app/models/survey.py:147
+msgid "WhatsApp"
 msgstr ""
 
 #: app/models/survey.py:148
-msgid "Text answer"
+msgid "VKontakte"
+msgstr ""
+
+#: app/models/survey.py:150
+msgid "LinkedIn"
 msgstr ""
 
 #: app/models/survey.py:151
-msgid "Response"
+msgid "Twitter"
 msgstr ""
 
 #: app/models/survey.py:152
-msgid "Responses"
+msgid "TikTok"
 msgstr ""
 
-#: app/serializers/survey.py:58
-msgid "Question is required"
+#: app/models/survey.py:153
+msgid "Other"
+msgstr ""
+
+#: app/models/survey.py:162
+msgid "Статус заявки"
+msgstr ""
+
+#: app/models/survey.py:166
+msgid "Source"
+msgstr ""
+
+#: app/models/survey.py:170
+msgid "Where did the user come from?"
+msgstr ""
+
+#: app/models/survey.py:174
+msgid "Comment"
+msgstr ""
+
+#: app/models/survey.py:177
+msgid "Comment about this submission"
+msgstr ""
+
+#: app/models/survey.py:181
+msgid "Survey Submission"
+msgstr ""
+
+#: app/models/survey.py:182
+msgid "Survey Submissions"
+msgstr ""
+
+#: app/models/survey.py:198
+msgid "Selected options"
+msgstr ""
+
+#: app/models/survey.py:203
+msgid "Text answer"
+msgstr ""
+
+#: app/models/survey.py:206
+msgid "Response"
+msgstr ""
+
+#: app/resource.py:24
+msgid "ID"
+msgstr ""
+
+#: app/resource.py:26
+msgid "Created At"
+msgstr ""
+
+#: app/resource.py:327
+msgid "Field Type Choice Display"
+msgstr ""
+
+#: app/resource.py:331
+msgid "Input Type Display"
 msgstr ""
 
 #: app/serializers/survey.py:63
-msgid "Text answer is required for text input"
+msgid "Text answer is required for this question."
 msgstr ""
 
-#: app/serializers/survey.py:65
-msgid "Selected options are not allowed for text input"
+#: app/serializers/survey.py:66
+msgid "At least one option must be selected for this question."
 msgstr ""
 
-#: app/serializers/survey.py:73 app/serializers/survey.py:106
-msgid "Text answer does not match pattern {}"
+#: app/serializers/survey.py:73
+msgid "Text answer is required for the selected option."
 msgstr ""
 
 #: app/serializers/survey.py:80
-msgid "At least one option must be selected"
+#, python-brace-format
+msgid "Option \"{0}\" does not belong to question \"{1}\""
 msgstr ""
 
-#: app/serializers/survey.py:87
-msgid "Options {} do not belong to question {}"
+#: app/serializers/survey.py:94
+msgid "Text answer does not match the required format."
 msgstr ""
 
-#: app/serializers/survey.py:91
-msgid "Only one option can be selected for single choice"
-msgstr ""
-
-#: app/serializers/survey.py:96
-msgid "Text answer is required for option with custom input"
-msgstr ""
-
-#: app/serializers/survey.py:98
-msgid "Text answer is not allowed without custom input option"
-msgstr ""
-
-#: app/serializers/survey.py:123
-msgid "At least one response is required"
-msgstr ""
-
-#: app/serializers/survey.py:128
-msgid "Duplicate questions found in responses"
-msgstr ""
-
-#: app/serializers/survey.py:136
+#: app/serializers/survey.py:125
 msgid "Missing responses for questions: {}"
+msgstr ""
+
+#: app/serializers/survey.py:131
+msgid "Duplicate responses for some questions."
+msgstr ""
+
+#: app/serializers/survey.py:157
+msgid "No status found for the submission"
+msgstr ""
+
+#: app/serializers/visa.py:14
+msgid "Passport number"
+msgstr ""
+
+#: app/serializers/visa.py:18
+msgid "Full name in English"
+msgstr ""
+
+#: app/serializers/visa.py:21
+msgid "Date of birth in YYYY-MM-DD format"
+msgstr ""
+
+#: app/serializers/visa.py:28
+msgid "Birth date cannot be in the future"
+msgstr ""
+
+#: app/serializers/visa.py:35
+msgid "Passport number must contain only letters and numbers"
+msgstr ""
+
+#: app/serializers/visa.py:43
+msgid "Application number"
+msgstr ""
+
+#: app/serializers/visa.py:47
+msgid "Application submission date"
+msgstr ""
+
+#: app/serializers/visa.py:51
+msgid "Purpose of entry"
+msgstr ""
+
+#: app/serializers/visa.py:55
+msgid "Current status in Korean"
+msgstr ""
+
+#: app/serializers/visa.py:59
+msgid "Current status in English"
+msgstr ""
+
+#: app/serializers/visa.py:63
+msgid "Type of visa"
+msgstr ""
+
+#: app/serializers/visa.py:67
+msgid "Stay qualification"
+msgstr ""
+
+#: app/serializers/visa.py:71 app/serializers/visa.py:75
+msgid "Visa expiry date"
+msgstr ""
+
+#: app/serializers/visa.py:79
+msgid "Rejection reason if application was rejected"
+msgstr ""
+
+#: app/serializers/visa.py:83 app/serializers/visa.py:106
+msgid "URL for downloading visa PDF"
+msgstr ""
+
+#: app/serializers/visa.py:87 app/serializers/visa.py:110
+msgid "Parameters required for PDF download"
+msgstr ""
+
+#: app/serializers/visa.py:94
+msgid "Response status (success/error)"
+msgstr ""
+
+#: app/serializers/visa.py:98
+msgid "Visa application data"
 msgstr ""
 
 #: app/views/pages.py:17
@@ -432,15 +687,74 @@ msgstr ""
 msgid "Returns contact information"
 msgstr ""
 
-#: root/settings.py:208
+#: app/views/visa.py:24
+msgid "Check visa status"
+msgstr ""
+
+#: app/views/visa.py:25
+msgid ""
+"\n"
+"Check visa application status using passport number, name and birth date.\n"
+"\n"
+"**Possible Status Values:**\n"
+"- `Approved`: Your visa has been approved\n"
+"- `Application Received`: Your application has been received\n"
+"- `Rejected`: Your application has been rejected\n"
+"- `Under Review`: Your application is being reviewed\n"
+msgstr ""
+
+#: app/views/visa.py:69
+msgid ""
+"Visa application not found. Please check your passport number, name and "
+"birth date."
+msgstr ""
+
+#: app/views/visa.py:87
+msgid "PDF file content"
+msgstr ""
+
+#: app/views/visa.py:91
+msgid "Bad request"
+msgstr ""
+
+#: app/views/visa.py:95
+msgid "Server error"
+msgstr ""
+
+#: app/views/visa.py:141
+#, python-brace-format
+msgid "Failed to download PDF: {error}"
+msgstr ""
+
+#: root/settings.py:226
 msgid "English"
 msgstr ""
 
-#: root/settings.py:208
+#: root/settings.py:226
 msgid "Uzbek"
 msgstr ""
 
-#: shared/django/admin/inlines.py:66
+#: shared/django/admin/forms.py:25
+msgid "Created from"
+msgstr ""
+
+#: shared/django/admin/forms.py:31
+msgid "Created to"
+msgstr ""
+
+#: shared/django/admin/forms.py:55
+msgid "Min value"
+msgstr ""
+
+#: shared/django/admin/forms.py:64
+msgid "Max value"
+msgstr ""
+
+#: shared/django/admin/forms.py:96
+msgid "Enter text to search"
+msgstr ""
+
+#: shared/django/admin/inlines.py:69
 msgid "At least 2 answer options are required for single/multiple choice."
 msgstr ""
 
@@ -470,4 +784,12 @@ msgstr ""
 
 #: shared/django/recaptcha.py:59
 msgid "ReCaptcha token is required"
+msgstr ""
+
+#: shared/parse/parse_visa.py:137
+msgid "Server returned error response"
+msgstr ""
+
+#: shared/parse/parse_visa.py:213
+msgid "Invalid date format. Use YYYY-MM-DD"
 msgstr ""

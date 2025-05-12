@@ -105,10 +105,10 @@ async def send_telegram_message(message: str, submission_id: int = None) -> bool
 @sync_to_async
 def get_submission_data(submission_id: int):
     """
-    Получает данные заявки из базы данных.
+    Get submission data from the database.
     
     Args:
-        submission_id: ID заявки
+        submission_id: Submission ID
         
     Returns:
         tuple: (submission, responses)
@@ -126,17 +126,17 @@ def get_submission_data(submission_id: int):
 
 async def format_submission_notification(submission_id: int) -> str:
     """
-    Формирует сообщение о новой заявке, используя field_key вместо question.title,
-    с декоративными элементами и улучшенным оформлением.
+    Format a message about a new submission, using field_key instead of question.title,
+    with decorative elements and improved formatting.
     """
     try:
         submission, responses = await get_submission_data(submission_id)
         current_time = timezone.now().strftime("%d.%m.%Y %H:%M:%S")
 
-        # Разделительная линия
+        # Separator line
         separator = "━━━━━━━━━━━━━━━━━━━━"
 
-        # Шапка сообщения
+        # Message header
         message_lines = [
             "<b>📋 YANGI ARIZA</b>",
             separator,
@@ -148,32 +148,32 @@ async def format_submission_notification(submission_id: int) -> str:
             separator
         ]
 
-        # Перебираем все ответы
+        # Iterate through all responses
         for response in responses:
-            # Используем field_key (если нет, подстраховываемся question.title)
+            # Use field_key (if not, use question.title as a fallback)
             field_key = (response.question.field_type.field_key 
                         if response.question.field_type 
                         else response.question.title)
 
-            # Если это текстовый вопрос
+            # For text responses
             if response.question.input_type == 'text':
                 safe_key = html.escape(field_key)
                 safe_value = html.escape(response.text_answer or "Ko'rsatilmagan")
                 message_lines.append(f"""  • <b>{safe_key}:</b> {safe_value}""")
                 continue
 
-            # Список выбранных опций (если это чекбоксы, селекты и т.д.)
+            # For multiple choice options (if it's checkboxes, selects, etc.)
             selected_options = list(response.selected_options.all())
 
             if selected_options:
-                # Сортируем: сначала с родителем, потом одиночные
+                # Sort: first with parent, then single
                 sorted_options = sorted(selected_options, key=lambda opt: opt.parent is None)
 
                 if len(sorted_options) > 1:
                     safe_key = html.escape(field_key)
                     message_lines.append(f"  • <b>{safe_key}:</b>")
                     for option in sorted_options:
-                        # Если у опции есть has_custom_input и пользовательский ввод
+                        # If the option has a custom input and user input
                         if option.has_custom_input and response.text_answer:
                             if option.parent:
                                 parent_text = html.escape(option.parent.text)
@@ -192,7 +192,7 @@ async def format_submission_notification(submission_id: int) -> str:
                                 message_lines.append(f"    ◦ {option_text}")
                 else:
                     option = sorted_options[0]
-                    # Если у опции есть has_custom_input и пользовательский ввод
+                    # If the option has a custom input and user input
                     if option.has_custom_input and response.text_answer:
                         if option.parent:
                             safe_key = html.escape(field_key)
@@ -214,12 +214,12 @@ async def format_submission_notification(submission_id: int) -> str:
                             option_text = html.escape(option.text)
                             message_lines.append(f"  • <b>{safe_key}:</b> {option_text}")
 
-            # Если пользователь ничего не выбрал
+            # If the user didn't select anything
             else:
                 safe_key = html.escape(field_key)
                 message_lines.append(f"  • <b>{safe_key}:</b> Ko'rsatilmagan")
 
-        # Добавляем комментарий, если он есть
+        # Add a comment if it exists
         if submission.comment:
             message_lines.extend([
                 "",
@@ -228,10 +228,10 @@ async def format_submission_notification(submission_id: int) -> str:
                 html.escape(submission.comment)
             ])
 
-        # Добавим нижнюю разделительную линию
+        # Add a bottom separator line
         message_lines.append(separator)
 
-        # Закрывающее сообщение
+        # Closing message
         message_lines.append("")
         message_lines.append("<i>Batafsil ma'lumot uchun admin panelni tekshiring.</i>")
 
@@ -273,11 +273,11 @@ async def notify_new_submission(submission_id: int) -> None:
 
 def notify_new_submission_async(submission_id: int) -> None:
     """
-    Асинхронно отправляет уведомление о новой заявке в Telegram.
-    Запускает процесс в отдельном потоке, не блокируя основной поток обработки запроса.
+    Asynchronously sends a notification about a new submission to Telegram.
+    Launches the process in a separate thread, not blocking the main request processing thread.
     
     Args:
-        submission_id: ID заявки
+        submission_id: Submission ID
     """
     async def run_async():
         await notify_new_submission(submission_id)
@@ -290,7 +290,7 @@ def notify_new_submission_async(submission_id: int) -> None:
 
     thread = threading.Thread(
         target=run_in_thread,
-        daemon=True  # Поток завершится, когда основной процесс завершится
+        daemon=True  # The thread will exit when the main process exits
     )
     thread.start()
     logger.info(f"Started background notification thread for submission #{submission_id}")
@@ -306,15 +306,15 @@ def get_submission_by_id(submission_id: int) -> 'SurveySubmission':
 @with_db_reconnect(max_attempts=3, backoff_time=0.5)
 def get_submission_and_update_status(submission_id: int, new_status: str = None, comment: str = None) -> 'SurveySubmission':
     """
-    Получает объект заявки и обновляет его статус или комментарий.
+    Get the submission object and update its status or comment.
     
     Args:
-        submission_id: ID заявки
-        new_status: Код нового статуса (опционально)
-        comment: Новый комментарий (опционально)
+        submission_id: Submission ID
+        new_status: New status code (optional)
+        comment: New comment (optional)
         
     Returns:
-        SurveySubmission: Обновленный объект заявки
+        SurveySubmission: Updated submission object
     """
     submission = SurveySubmission.objects.select_related('status').get(id=submission_id)
     update_fields = []
@@ -393,29 +393,29 @@ async def handle_status_callback(callback_query: CallbackQuery, state: FSMContex
         action, *params = callback_query.data.split(':')
 
         if action == 'show_status':
-            # Показываем меню выбора статуса
+            # Show status selection menu
             submission_id = int(params[0])
             keyboard = await create_status_selection_keyboard(submission_id, state)
             await callback_query.message.edit_reply_markup(reply_markup=keyboard)
 
         elif action == 'select_status':
-            # Сохраняем выбранный статус во временное хранилище и обновляем клавиатуру
+            # Save the selected status to the temporary storage and update the keyboard
             submission_id, new_status = params
             await state.update_data(**{f'temp_status_{submission_id}': new_status})
             keyboard = await create_status_selection_keyboard(submission_id, state)
             await callback_query.message.edit_reply_markup(reply_markup=keyboard)
 
         elif action == 'apply_status':
-            # Применяем выбранный статус
+            # Apply the selected status
             submission_id = int(params[0])
             data = await state.get_data()
             new_status = data.get(f'temp_status_{submission_id}')
 
             if new_status:
-                # Обновляем статус в базе данных
+                # Update status in the database
                 await get_submission_and_update_status(submission_id, new_status)
 
-                # Обновляем сообщение
+                # Update message
                 message = await format_submission_notification(submission_id)
                 keyboard = await create_submission_keyboard(submission_id)
 
@@ -426,19 +426,19 @@ async def handle_status_callback(callback_query: CallbackQuery, state: FSMContex
                     disable_web_page_preview=True
                 )
 
-                # Очищаем временное хранилище
+                # Clear temporary storage
                 await state.update_data(**{f'temp_status_{submission_id}': None})
                 await callback_query.answer("Status yangilandi")
             else:
                 await callback_query.answer("Iltimos, avval statusni tanlang")
 
         elif action == 'back_to_main':
-            # Возвращаемся к основному меню
+            # Return to the main menu
             submission_id = int(params[0])
             keyboard = await create_submission_keyboard(submission_id)
             await callback_query.message.edit_reply_markup(reply_markup=keyboard)
 
-            # Очищаем временное хранилище
+            # Clear temporary storage
             await state.update_data(**{f'temp_status_{submission_id}': None})
 
     except Exception as e:
@@ -449,34 +449,34 @@ async def handle_status_callback(callback_query: CallbackQuery, state: FSMContex
 @sync_to_async
 def get_submission_status(submission_id: int) -> str:
     """
-    Получает текущий статус заявки.
+    Get the current submission status.
     
     Args:
-        submission_id: ID заявки
+        submission_id: Submission ID
         
     Returns:
-        str: Текущий статус заявки
+        str: Current submission status
     """
     submission = SurveySubmission.objects.get(id=submission_id)
-    return submission.status.name  # Используем name вместо самого объекта
+    return submission.status.name  # Use name instead of the status object
 
 
 async def create_submission_keyboard(submission_id: int) -> InlineKeyboardMarkup:
     """
-    Создает клавиатуру с кнопками для заявки.
+    Create a keyboard with buttons for the submission.
     
     Args:
-        submission_id: ID заявки
+        submission_id: Submission ID
         
     Returns:
-        InlineKeyboardMarkup: Объект клавиатуры
+        InlineKeyboardMarkup: Keyboard object
     """
-    # Получаем базовый URL и текущий статус
+    # Get base URL and current status
     base_url = getattr(settings, 'BASE_URL', 'http://localhost:8000')
     admin_url = f"{base_url}/admin/app/surveysubmission/{submission_id}/change/"
     current_status = await get_submission_status(submission_id)
     
-    # Создаем клавиатуру с двумя кнопками
+    # Create a keyboard with two buttons
     keyboard = [
         [
             InlineKeyboardButton(text=f"Status: {current_status}", callback_data=f"show_status:{submission_id}"),
@@ -492,38 +492,38 @@ async def create_submission_keyboard(submission_id: int) -> InlineKeyboardMarkup
 
 @sync_to_async
 def get_all_statuses():
-    """Получает все статусы из базы данных."""
+    """Get all statuses from the database."""
     return list(SubmissionStatus.objects.values_list('code', 'name'))
 
 async def create_status_selection_keyboard(submission_id: int, state) -> InlineKeyboardMarkup:
     """
-    Создает клавиатуру для выбора статуса.
+    Create a keyboard for status selection.
     
     Args:
-        submission_id: ID заявки
-        state: Состояние FSM для получения выбранного статуса
+        submission_id: Submission ID
+        state: FSM state for getting the selected status
         
     Returns:
-        InlineKeyboardMarkup: Объект клавиатуры со статусами
+        InlineKeyboardMarkup: Keyboard object with statuses
     """
-    # Получаем выбранный статус из состояния
+    # Get the selected status from the state
     data = await state.get_data()
     selected_status = data.get(f'temp_status_{submission_id}')
     
-    # Получаем все статусы асинхронно
+    # Get all statuses asynchronously
     statuses = await get_all_statuses()
     keyboard = []
     
-    # Добавляем кнопки для каждого статуса
+    # Add buttons for each status
     for status_code, status_name in statuses:
-        # Добавляем маркер к выбранному статусу
+        # Add marker to the selected status
         label = f"✓ {status_name}" if status_code == selected_status else status_name
         keyboard.append([InlineKeyboardButton(
             text=label,
             callback_data=f"select_status:{submission_id}:{status_code}"
         )])
     
-    # Добавляем кнопки "Готово" и "Назад"
+    # Add 'Done' and 'Back' buttons
     keyboard.append([
         InlineKeyboardButton(text="✅ Готово", callback_data=f"apply_status:{submission_id}"),
         InlineKeyboardButton(text="⬅️ Назад", callback_data=f"back_to_main:{submission_id}")
