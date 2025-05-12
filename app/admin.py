@@ -380,9 +380,6 @@ class SubmissionStatusAdmin(ImportExportModelAdmin, CustomSortableAdminMixin, Tr
         (_('Status Behavior'), {
             'fields': ('is_default', 'is_final', 'active')
         }),
-        (_('Display Options'), {
-            'fields': ('order',)
-        }),
         (_('System Information'), {
             'fields': ('created_at', 'updated_at'),
             'classes': ('collapse',)
