@@ -1,5 +1,6 @@
 from adminsortable2.admin import SortableAdminBase
 from django.contrib.admin import register, ModelAdmin, site
+from django.db.models import Prefetch
 from django.utils.http import urlencode
 from django.utils.translation import gettext_lazy as _
 from import_export.admin import ImportExportModelAdmin
@@ -16,7 +17,7 @@ except ImportError:
 
 from app.models import (
     About, VisaType, ResultCategory, Result, ContactInfo, UniversityLogo, Question, AnswerOption, SurveySubmission,
-    InputFieldType, SubmissionStatus
+    InputFieldType, SubmissionStatus, Response
 )
 from app.resource import QuestionResource, InputFieldTypeResource, SurveySubmissionResource, AnswerOptionResource
 
@@ -108,27 +109,37 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
     date_hierarchy = 'created_at'
     inlines = [ResponseInline]
     # export_form_class = SurveyExportForm
-
+    
+    # Кеш для фильтров вопросов - будет создаваться один раз при запуске сервера
+    _cached_question_filters = None
+    
     def get_list_filter(self, request):
         """
         Return a sequence containing the fields to be displayed as filters in
         the right sidebar of the changelist page.
+        
+        Использует кеширование для предотвращения повторного создания фильтров.
         """
         # Get base filters from the list_filter attribute
         base_filters = list(self.list_filter)
 
-        # Add dynamic filters for each question
-        questions = Question.objects.all()
-        dynamic_filters = []
+        # Используем кешированные фильтры, если они уже созданы
+        if self.__class__._cached_question_filters is None:
+            # Кеш пустой - создаем фильтры
+            questions = Question.objects.select_related('field_type')
+            dynamic_filters = []
 
-        for q in questions:
-            # Get all filters for this question (one per option family)
-            filter_classes = create_question_filters(q)
-            # Add each filter to the list
-            dynamic_filters.extend(filter_classes)
-
-        # Return combined filters
-        return base_filters + dynamic_filters
+            for q in questions:
+                # Get all filters for this question (one per option family)
+                filter_classes = create_question_filters(q)
+                # Add each filter to the list
+                dynamic_filters.extend(filter_classes)
+                
+            # Сохраняем в кеш
+            self.__class__._cached_question_filters = dynamic_filters
+        
+        # Return combined filters using кешированные фильтры
+        return base_filters + self.__class__._cached_question_filters
 
     def get_export_queryset(self, request):
         """
@@ -140,11 +151,6 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
         Returns:
             Base queryset for export
         """
-        # We'll just log the form data for debugging but won't apply filters here
-        # as they will be applied in resource.filter_export
-        # if hasattr(self, 'export_form') and self.export_form.is_valid():
-            # print(f"Export form data: {self.export_form.cleaned_data}")
-
         return super().get_export_queryset(request)
 
     def get_export_data(self, file_format, queryset, *args, **kwargs):
@@ -166,15 +172,13 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
         # Extract form data to pass to the resource's filter_export method
         if self.export_form and self.export_form.is_valid():
             form_data = self.export_form.cleaned_data
-            # print(f"Export form data: {form_data}")
-
+            
             # Add form data to kwargs that will be passed to resource.filter_export
             # Skip file_format since it's already a positional argument
             for key, value in form_data.items():
                 if key != 'file_format':  # Skip file_format to avoid duplicate argument
                     kwargs[key] = value
 
-        # print(file_format, kwargs)
         return super().get_export_data(file_format, queryset, *args, **kwargs)
 
     def get_queryset(self, request):
@@ -188,31 +192,36 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
             Optimized queryset with prefetched related objects
         """
         qs = super().get_queryset(request)
-        return qs.prefetch_related('responses', 'responses__selected_options', 'responses__question')
+        # Оптимизируем запрос, подгружая сразу все связанные данные одним запросом
+        return qs.select_related('status').prefetch_related(
+            # Подгружаем ответы с их связанными данными
+            Prefetch('responses', 
+                     queryset=Response.objects.select_related('question', 'question__field_type')
+                     .prefetch_related('selected_options')
+            )
+        )
 
     def get_responses_count(self, obj):
         """
-        Получить количество ответов в заявке.
+        Получить количество ответов в заявке. Использует префетченные данные.
         """
-        return obj.responses.count()
+        # Используем len вместо count() для предотвращения нового запроса к БД
+        return len(obj.responses.all())
 
     get_responses_count.short_description = _('Responses')
 
     def get_phone_number(self, obj):
         """
         Получить номер телефона из ответов, если есть вопрос с типом поля для телефона.
+        Использует префетченные данные для предотвращения дополнительных запросов.
         """
-        # Ищем ответ на вопрос с телефоном (по field_type или field_title)
         try:
-            phone_response = obj.responses.filter(
-                question__field_type__field_key__iexact="phone number"
-            ).first()
-
-            if phone_response:
-                return phone_response.text_answer
+            # Ищем в уже загруженных данных вместо нового запроса
+            for response in obj.responses.all():
+                if response.question.field_type.field_key.lower() == "phone number":
+                    return response.text_answer or '-'
         except Exception:
             pass
-
         return '-'
 
     get_phone_number.short_description = _('Phone Number')
@@ -220,61 +229,65 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
     def get_full_name(self, obj):
         """
         Получить имя из ответов, если есть вопрос с именем.
+        Использует префетченные данные для предотвращения дополнительных запросов.
         """
-        # Ищем ответ на вопрос с именем (по field_title или title)
         try:
-            name_response = obj.responses.filter(
-                question__field_type__field_key__iexact="name"
-            ).first()
-
-            if name_response:
-                return name_response.text_answer
+            # Ищем в уже загруженных данных вместо нового запроса
+            for response in obj.responses.all():
+                if response.question.field_type.field_key.lower() == "name":
+                    return response.text_answer or '-'
         except Exception:
             pass
-
         return '-'
 
     get_full_name.short_description = _('Full Name')
 
     def get_language_certificate(self, obj):
-        """Получить информацию о языковом сертификате."""
+        """Получить информацию о языковом сертификате.
+        Использует префетченные данные для предотвращения дополнительных запросов."""
         try:
-            cert_response = obj.responses.filter(
-                question__field_type__field_key__iexact="language certificate"
-            ).first()
-            if cert_response:
-                if cert_response.text_answer:  # если есть пользовательский ввод
-                    return cert_response.text_answer
-                # если есть выбранные опции
-                options = cert_response.selected_options.all()
-                if options:
-                    return ', '.join(opt.text for opt in options)
-            return '-'
+            # Ищем в уже загруженных данных вместо нового запроса
+            for response in obj.responses.all():
+                if response.question.field_type.field_key.lower() == "language certificate":
+                    if response.text_answer:  # если есть пользовательский ввод
+                        return response.text_answer
+                    # если есть выбранные опции - они уже подгружены через prefetch_related
+                    options = response.selected_options.all()
+                    if options:
+                        return ', '.join(opt.text for opt in options)
+                    return '-'
         except Exception:
-            return '-'
+            pass
+        return '-'
+        
     get_language_certificate.short_description = _('Language Certificate')
 
     def get_field_of_study(self, obj):
-        """Получить информацию о направлении обучения."""
+        """Получить информацию о направлении обучения.
+        Использует префетченные данные для предотвращения дополнительных запросов."""
         try:
-            study_response = obj.responses.filter(
-                question__field_type__field_key__iexact="field of study"
-            ).first()
-            if study_response:
-                if study_response.text_answer:  # если есть пользовательский ввод
-                    return study_response.text_answer
-                # если есть выбранные опции
-                options = study_response.selected_options.all()
-                if options:
-                    return ', '.join(opt.text for opt in options)
-            return '-'
+            # Ищем в уже загруженных данных вместо нового запроса
+            for response in obj.responses.all():
+                if response.question.field_type.field_key.lower() == "field of study":
+                    if response.text_answer:  # если есть пользовательский ввод
+                        return response.text_answer
+                    # если есть выбранные опции - они уже подгружены через prefetch_related
+                    options = response.selected_options.all()
+                    if options:
+                        return ', '.join(opt.text for opt in options)
+                    return '-'
         except Exception:
-            return '-'
+            pass
+        return '-'
+        
     get_field_of_study.short_description = _('Field of Study')
 
     def get_status_display(self, obj):
-        """Отображает название статуса из связанной модели SubmissionStatus"""
+        """Отображает название статуса из связанной модели SubmissionStatus.
+        Использует select_related для предотвращения дополнительных запросов."""
+        # Статус уже подгружен через select_related
         return obj.status.name
+        
     get_status_display.short_description = _('Status')
     
     def changelist_view(self, request, extra_context=None):

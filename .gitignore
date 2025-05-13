@@ -253,3 +253,6 @@ cython_debug/
 *.crt
 *.pem
 *.key
+
+# logs
+logs/
