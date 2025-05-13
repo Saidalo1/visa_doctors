@@ -110,7 +110,7 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
     inlines = [ResponseInline]
     # export_form_class = SurveyExportForm
     
-    # Кеш для фильтров вопросов - будет создаваться один раз при запуске сервера
+    # Cache for question filters - will be created once at server startup
     _cached_question_filters = None
     
     def get_list_filter(self, request):
@@ -118,14 +118,14 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
         Return a sequence containing the fields to be displayed as filters in
         the right sidebar of the changelist page.
         
-        Использует кеширование для предотвращения повторного создания фильтров.
+        Uses caching to prevent recreating filters on each request.
         """
         # Get base filters from the list_filter attribute
         base_filters = list(self.list_filter)
 
-        # Используем кешированные фильтры, если они уже созданы
+        # Use cached filters if they already exist
         if self.__class__._cached_question_filters is None:
-            # Кеш пустой - создаем фильтры
+            # Cache is empty - create filters
             questions = Question.objects.select_related('field_type')
             dynamic_filters = []
 
@@ -135,10 +135,10 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
                 # Add each filter to the list
                 dynamic_filters.extend(filter_classes)
                 
-            # Сохраняем в кеш
+            # Save to cache
             self.__class__._cached_question_filters = dynamic_filters
         
-        # Return combined filters using кешированные фильтры
+        # Return combined filters using cached filters
         return base_filters + self.__class__._cached_question_filters
 
     def get_export_queryset(self, request):
@@ -192,9 +192,9 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
             Optimized queryset with prefetched related objects
         """
         qs = super().get_queryset(request)
-        # Оптимизируем запрос, подгружая сразу все связанные данные одним запросом
+        # Optimize the query by loading all related data in a single query
         return qs.select_related('status').prefetch_related(
-            # Подгружаем ответы с их связанными данными
+            # Prefetch responses with their related data
             Prefetch('responses', 
                      queryset=Response.objects.select_related('question', 'question__field_type')
                      .prefetch_related('selected_options')
@@ -203,20 +203,20 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
 
     def get_responses_count(self, obj):
         """
-        Получить количество ответов в заявке. Использует префетченные данные.
+        Get the number of responses in the submission. Uses prefetched data.
         """
-        # Используем len вместо count() для предотвращения нового запроса к БД
+        # Use len instead of count() to prevent additional DB query
         return len(obj.responses.all())
 
     get_responses_count.short_description = _('Responses')
 
     def get_phone_number(self, obj):
         """
-        Получить номер телефона из ответов, если есть вопрос с типом поля для телефона.
-        Использует префетченные данные для предотвращения дополнительных запросов.
+        Get phone number from responses, if there is a question with phone field type.
+        Uses prefetched data to prevent additional queries.
         """
         try:
-            # Ищем в уже загруженных данных вместо нового запроса
+            # Search in already loaded data instead of making a new query
             for response in obj.responses.all():
                 if response.question.field_type.field_key.lower() == "phone number":
                     return response.text_answer or '-'
@@ -228,11 +228,11 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
 
     def get_full_name(self, obj):
         """
-        Получить имя из ответов, если есть вопрос с именем.
-        Использует префетченные данные для предотвращения дополнительных запросов.
+        Get name from responses, if there is a question with name.
+        Uses prefetched data to prevent additional queries.
         """
         try:
-            # Ищем в уже загруженных данных вместо нового запроса
+            # Search in already loaded data instead of making a new query
             for response in obj.responses.all():
                 if response.question.field_type.field_key.lower() == "name":
                     return response.text_answer or '-'
@@ -243,15 +243,15 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
     get_full_name.short_description = _('Full Name')
 
     def get_language_certificate(self, obj):
-        """Получить информацию о языковом сертификате.
-        Использует префетченные данные для предотвращения дополнительных запросов."""
+        """Get information about language certificate.
+        Uses prefetched data to prevent additional queries."""
         try:
-            # Ищем в уже загруженных данных вместо нового запроса
+            # Search in already loaded data instead of making a new query
             for response in obj.responses.all():
                 if response.question.field_type.field_key.lower() == "language certificate":
-                    if response.text_answer:  # если есть пользовательский ввод
+                    if response.text_answer:  # if there is user input
                         return response.text_answer
-                    # если есть выбранные опции - они уже подгружены через prefetch_related
+                    # if there are selected options - they are already loaded via prefetch_related
                     options = response.selected_options.all()
                     if options:
                         return ', '.join(opt.text for opt in options)
@@ -263,15 +263,15 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
     get_language_certificate.short_description = _('Language Certificate')
 
     def get_field_of_study(self, obj):
-        """Получить информацию о направлении обучения.
-        Использует префетченные данные для предотвращения дополнительных запросов."""
+        """Get information about field of study.
+        Uses prefetched data to prevent additional queries."""
         try:
-            # Ищем в уже загруженных данных вместо нового запроса
+            # Search in already loaded data instead of making a new query
             for response in obj.responses.all():
                 if response.question.field_type.field_key.lower() == "field of study":
-                    if response.text_answer:  # если есть пользовательский ввод
+                    if response.text_answer:  # if there is user input
                         return response.text_answer
-                    # если есть выбранные опции - они уже подгружены через prefetch_related
+                    # if there are selected options - they are already loaded via prefetch_related
                     options = response.selected_options.all()
                     if options:
                         return ', '.join(opt.text for opt in options)
@@ -283,21 +283,21 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
     get_field_of_study.short_description = _('Field of Study')
 
     def get_status_display(self, obj):
-        """Отображает название статуса из связанной модели SubmissionStatus.
-        Использует select_related для предотвращения дополнительных запросов."""
-        # Статус уже подгружен через select_related
+        """Display status name from related SubmissionStatus model.
+        Uses select_related to prevent additional queries."""
+        # Status is already loaded via select_related
         return obj.status.name
         
     get_status_display.short_description = _('Status')
     
     def changelist_view(self, request, extra_context=None):
-        """Фильтр 'new' ставится по умолчанию, но если пользователь убрал его вручную — не навязываем снова."""
+        """'new' filter is set by default, but if the user removed it manually - don't force it again."""
 
-        # Если фильтр статуса отсутствует, но другие GET-параметры есть → юзер сам убрал фильтр
+        # If status filter is missing but other GET parameters exist → user removed the filter manually
         if "status__code__exact" not in request.GET and request.GET:
             return super().changelist_view(request, extra_context)
 
-        # Если в GET-запросе вообще нет параметров → значит, это первый заход, ставим статус "new"
+        # If there are no parameters in GET request → it's the first visit, set status "new"
         if not request.GET:
             q = request.GET.copy()
             q["status__code__exact"] = "new"
