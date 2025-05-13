@@ -1,18 +1,17 @@
 from adminsortable2.admin import SortableAdminBase
-from django.contrib.admin import register, ModelAdmin, site
+from django.contrib.admin import register, ModelAdmin
 from django.db.models import Prefetch
-from django.utils.http import urlencode
+from django.http import HttpResponseRedirect
 from django.utils.translation import gettext_lazy as _
 from import_export.admin import ImportExportModelAdmin
 from modeltranslation.admin import TranslationAdmin
 from mptt.admin import DraggableMPTTAdmin
-from django.http import HttpResponseRedirect
 
 try:
-    # Импортируем только из модуля django-jazzmin-admin-rangefilter
+    # Import only from the django-jazzmin-admin-rangefilter module
     from rangefilter.filters import DateRangeFilter
 except ImportError:
-    # Резервный вариант - используем стандартный фильтр
+    # Backup option - use the standard filter
     from django.contrib.admin import DateFieldListFilter as DateRangeFilter
 
 from app.models import (
@@ -27,7 +26,6 @@ from shared.django.admin import (
     AnswerOptionInline, CustomSortableAdminMixin, ResponseInline
 )
 from shared.django.admin.filters import create_question_filters
-from shared.django.admin.forms import SurveyExportForm
 
 
 @register(About)
@@ -335,7 +333,7 @@ class QuestionAdmin(ImportExportModelAdmin, CustomSortableAdminMixin, Translatio
     resource_class = QuestionResource
     list_display = ['title', 'input_type', 'field_type', 'is_required', 'created_at', 'order']
     list_filter = ['input_type', 'field_type', 'is_required', 'created_at']
-    search_fields = ['title', 'field_type__field_title', 'placeholder']
+    search_fields = ['title', 'field_type__title', 'placeholder']
     list_editable = 'is_required',
     inlines = [AnswerOptionInline]
     date_hierarchy = 'created_at'
