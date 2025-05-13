@@ -351,6 +351,7 @@ CKEDITOR_5_MAX_UPLOAD_SIZE = 5 * 1024 * 1024  # 5MB max file size
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+
     'filters': {
         'require_debug_true': {
             '()': 'django.utils.log.RequireDebugTrue',
@@ -359,6 +360,7 @@ LOGGING = {
             '()': 'django.utils.log.RequireDebugFalse',
         },
     },
+
     'formatters': {
         'verbose': {
             'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
@@ -369,9 +371,10 @@ LOGGING = {
             'style': '{',
         },
     },
+
     'handlers': {
         'console': {
-            'level': 'INFO',
+            'level': 'DEBUG',
             'filters': ['require_debug_true'],
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
@@ -382,6 +385,7 @@ LOGGING = {
             'class': 'logging.FileHandler',
             'filename': join(BASE_DIR, 'logs/info.log'),
             'formatter': 'verbose',
+            'encoding': 'utf-8',
         },
         'warning_file': {
             'level': 'WARNING',
@@ -389,6 +393,7 @@ LOGGING = {
             'class': 'logging.FileHandler',
             'filename': join(BASE_DIR, 'logs/warning.log'),
             'formatter': 'verbose',
+            'encoding': 'utf-8',
         },
         'error_file': {
             'level': 'ERROR',
@@ -396,19 +401,14 @@ LOGGING = {
             'class': 'logging.FileHandler',
             'filename': join(BASE_DIR, 'logs/error.log'),
             'formatter': 'verbose',
-        },
-        'critical_file': {
-            'level': 'CRITICAL',
-            'filters': ['require_debug_false'],
-            'class': 'logging.FileHandler',
-            'filename': join(BASE_DIR, 'logs/critical.log'),
-            'formatter': 'verbose',
+            'encoding': 'utf-8',
         },
     },
+
     'loggers': {
         'django': {
-            'handlers': ['console', 'info_file', 'warning_file', 'error_file', 'critical_file'],
-            'level': 'INFO',
+            'handlers': ['console', 'info_file', 'warning_file', 'error_file'],
+            'level': 'DEBUG',
             'propagate': True,
         },
         'django.request': {
@@ -416,14 +416,9 @@ LOGGING = {
             'level': 'ERROR',
             'propagate': False,
         },
-        'django.security': {
-            'handlers': ['error_file'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-        'django.db.backends': {
-            'handlers': ['error_file'],
-            'level': 'ERROR',
+        'app': {
+            'handlers': ['console', 'info_file', 'warning_file', 'error_file'],
+            'level': 'DEBUG',
             'propagate': False,
         },
     }
@@ -440,9 +435,9 @@ RECAPTCHA_REQUIRED_SCORE = env.float('RECAPTCHA_REQUIRED_SCORE')
 
 # Only use these in production
 if not DEBUG:
-    SECURE_SSL_REDIRECT = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = env.bool('SECURE_SSL_REDIRECT', True)
+    SESSION_COOKIE_SECURE = env.bool('SESSION_COOKIE_SECURE', True)
+    CSRF_COOKIE_SECURE = env.bool('CSRF_COOKIE_SECURE', True)
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
