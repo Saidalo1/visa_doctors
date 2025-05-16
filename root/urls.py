@@ -34,7 +34,10 @@ urlpatterns += i18n_patterns(
 
     # App URLs
     path('', include('app.urls')),
-    
+
+    # Mobile admin API
+    path('moderate/', include('app.urls_api')),
+
     prefix_default_language=True
 )
 

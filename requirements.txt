@@ -12,6 +12,9 @@ psycopg2-binary==2.9.9
 # API and REST
 django-cors-headers==4.3.1
 
+# Auth
+djangorestframework_simplejwt==5.5.0
+
 # Admin customization
 django-admin-autocomplete-filter==0.7.1
 django-admin-rangefilter==0.13.2
