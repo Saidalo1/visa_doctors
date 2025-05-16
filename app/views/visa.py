@@ -64,7 +64,7 @@ class VisaStatusCheckAPIView(APIView):
         visa_api = KoreaVisaAPI()
         result = visa_api.check_visa_status(search_params)
 
-        # Проверяем, что данные найдены
+        # Check, if data was found
         if not result.get('visa_data', {}).get('progress_status'):
             raise APIException(_("Visa application not found. Please check your passport number, name and birth date."))
 
@@ -103,7 +103,7 @@ class VisaPDFDownloadAPIView(APIView):
         serializer.is_valid(raise_exception=True)
 
         try:
-            # Создаем временную сессию для PDF
+            # Create a temporary session for PDF
             pdf_session = requests.Session()
             pdf_session.headers.update({
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
@@ -117,13 +117,13 @@ class VisaPDFDownloadAPIView(APIView):
                 "Sec-Fetch-Site": "same-origin"
             })
 
-            # Сначала инициализируем сессию
+            # First, initialize the session
             pdf_session.get(
                 f"{settings.KOREA_VISA_API_URL}/openPage.do",
                 params={"MENU_ID": "10301"}
             )
 
-            # Отправляем запрос на PDF
+            # Send a request for PDF
             pdf_response = pdf_session.post(
                 serializer.validated_data['pdf_url'],
                 data=serializer.validated_data['pdf_params'],
@@ -131,7 +131,7 @@ class VisaPDFDownloadAPIView(APIView):
             )
             pdf_response.raise_for_status()
 
-            # Возвращаем PDF
+            # Return PDF
             response = HttpResponse(pdf_response.content, content_type='application/pdf')
             response[
                 'Content-Disposition'] = f'attachment; filename="visa_{serializer.validated_data["pdf_params"]["EV_SEQ"]}.pdf"'

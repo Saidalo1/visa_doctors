@@ -30,7 +30,8 @@ STATUS_TRANSLATIONS = {
     '상세정보접수': 'Application Received',
     '불허': 'Rejected',
     '심사중': 'Under Review',
-    '접수': 'Application Received'
+    '접수': 'Application Received',
+    '사용완료': 'Used'
 }
 
 
@@ -179,7 +180,8 @@ class KoreaVisaAPI:
         if rejection_elements:
             visa_data['rejection_reason'] = rejection_elements[0].text_content().strip()
 
-        if status == '허가':
+        # Provide PDF download URL for '허가' (Approved) and '사용완료' (Used) statuses
+        if status == '허가' or status == '사용완료':
             # Extract the EV_SEQ value in one XPath call
             ev_seq_list = tree.xpath('//input[@id="EV_SEQ"]/@value')
             ev_seq = ev_seq_list[0] if ev_seq_list else ""
