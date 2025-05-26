@@ -74,6 +74,15 @@ INSTALLED_APPS = [
 
 # Admin reordering configuration
 ADMIN_REORDER = (
+    # Survey
+    {
+        'app': 'app',
+        'label': 'Survey',
+        'models': (
+            'app.Survey',
+        )
+    },
+
     # Survey Management
     {
         'app': 'app',
@@ -349,82 +358,83 @@ CKEDITOR_5_CONFIGS_PROFILE = 'default'  # The profile to use as default
 CKEDITOR_5_UPLOAD_FILE_TYPES = "image/jpeg,image/png,image/gif"
 CKEDITOR_5_MAX_UPLOAD_SIZE = 5 * 1024 * 1024  # 5MB max file size
 
-# Logs configuration
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
+if not DEBUG:
+    # Logs configuration
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': False,
 
-    'filters': {
-        'require_debug_true': {
-            '()': 'django.utils.log.RequireDebugTrue',
+        'filters': {
+            'require_debug_true': {
+                '()': 'django.utils.log.RequireDebugTrue',
+            },
+            'require_debug_false': {
+                '()': 'django.utils.log.RequireDebugFalse',
+            },
         },
-        'require_debug_false': {
-            '()': 'django.utils.log.RequireDebugFalse',
-        },
-    },
 
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-            'style': '{',
+        'formatters': {
+            'verbose': {
+                'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+                'style': '{',
+            },
+            'simple': {
+                'format': '{levelname} {message}',
+                'style': '{',
+            },
         },
-        'simple': {
-            'format': '{levelname} {message}',
-            'style': '{',
-        },
-    },
 
-    'handlers': {
-        'console': {
-            'level': 'DEBUG',
-            'filters': ['require_debug_true'],
-            'class': 'logging.StreamHandler',
-            'formatter': 'simple',
+        'handlers': {
+            'console': {
+                'level': 'DEBUG',
+                'filters': ['require_debug_true'],
+                'class': 'logging.StreamHandler',
+                'formatter': 'simple',
+            },
+            'info_file': {
+                'level': 'INFO',
+                'filters': ['require_debug_false'],
+                'class': 'logging.FileHandler',
+                'filename': join(BASE_DIR, 'logs/info.log'),
+                'formatter': 'verbose',
+                'encoding': 'utf-8',
+            },
+            'warning_file': {
+                'level': 'WARNING',
+                'filters': ['require_debug_false'],
+                'class': 'logging.FileHandler',
+                'filename': join(BASE_DIR, 'logs/warning.log'),
+                'formatter': 'verbose',
+                'encoding': 'utf-8',
+            },
+            'error_file': {
+                'level': 'ERROR',
+                'filters': ['require_debug_false'],
+                'class': 'logging.FileHandler',
+                'filename': join(BASE_DIR, 'logs/error.log'),
+                'formatter': 'verbose',
+                'encoding': 'utf-8',
+            },
         },
-        'info_file': {
-            'level': 'INFO',
-            'filters': ['require_debug_false'],
-            'class': 'logging.FileHandler',
-            'filename': join(BASE_DIR, 'logs/info.log'),
-            'formatter': 'verbose',
-            'encoding': 'utf-8',
-        },
-        'warning_file': {
-            'level': 'WARNING',
-            'filters': ['require_debug_false'],
-            'class': 'logging.FileHandler',
-            'filename': join(BASE_DIR, 'logs/warning.log'),
-            'formatter': 'verbose',
-            'encoding': 'utf-8',
-        },
-        'error_file': {
-            'level': 'ERROR',
-            'filters': ['require_debug_false'],
-            'class': 'logging.FileHandler',
-            'filename': join(BASE_DIR, 'logs/error.log'),
-            'formatter': 'verbose',
-            'encoding': 'utf-8',
-        },
-    },
 
-    'loggers': {
-        'django': {
-            'handlers': ['console', 'info_file', 'warning_file', 'error_file'],
-            'level': 'DEBUG',
-            'propagate': True,
-        },
-        'django.request': {
-            'handlers': ['error_file'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-        'app': {
-            'handlers': ['console', 'info_file', 'warning_file', 'error_file'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
+        'loggers': {
+            'django': {
+                'handlers': ['console', 'info_file', 'warning_file', 'error_file'],
+                'level': 'DEBUG',
+                'propagate': True,
+            },
+            'django.request': {
+                'handlers': ['error_file'],
+                'level': 'ERROR',
+                'propagate': False,
+            },
+            'app': {
+                'handlers': ['console', 'info_file', 'warning_file', 'error_file'],
+                'level': 'DEBUG',
+                'propagate': False,
+            },
+        }
     }
-}
 
 # Security Settings
 SECURE_BROWSER_XSS_FILTER = True
@@ -591,6 +601,7 @@ JAZZMIN_SETTINGS = {
         "app.contactinfo": "fas fa-address-book",
 
         # Survey
+        "app.survey": "fas fa-question",
         "app.question": "fas fa-question-circle",
         "app.answeroption": "fas fa-list",
         "app.surveysubmission": "fas fa-paper-plane",

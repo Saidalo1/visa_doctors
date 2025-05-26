@@ -16,7 +16,7 @@ except ImportError:
 
 from app.models import (
     About, VisaType, ResultCategory, Result, ContactInfo, UniversityLogo, Question, AnswerOption, SurveySubmission,
-    InputFieldType, SubmissionStatus, Response
+    InputFieldType, SubmissionStatus, Response, Survey
 )
 from app.resource import QuestionResource, InputFieldTypeResource, SurveySubmissionResource, AnswerOptionResource
 
@@ -85,229 +85,229 @@ class ContactInfoAdmin(TranslationAdmin):
     date_hierarchy = 'created_at'
 
 
-@register(SurveySubmission)
-class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
-    """Admin interface for SurveySubmission model."""
-    resource_class = SurveySubmissionResource
-    list_display = (
-        'id', 
-        'get_full_name', 
-        'get_phone_number',
-        'get_language_certificate',
-        'get_field_of_study',
-        'get_status_display',
-        'source', 
-        'comment',
-        'created_at', 
-        'get_responses_count'
-    )
-    list_filter = ('status', 'source', ('created_at', DateRangeFilter))
-    search_fields = 'id', 'responses__text_answer', 'comment'
-    readonly_fields = 'created_at',
-    date_hierarchy = 'created_at'
-    inlines = [ResponseInline]
-    # export_form_class = SurveyExportForm
-    
-    # Cache for question filters - will be created once at server startup
-    _cached_question_filters = None
-    
-    def get_list_filter(self, request):
-        """
-        Return a sequence containing the fields to be displayed as filters in
-        the right sidebar of the changelist page.
-        
-        Uses caching to prevent recreating filters on each request.
-        """
-        # Get base filters from the list_filter attribute
-        base_filters = list(self.list_filter)
-
-        # Use cached filters if they already exist
-        if self.__class__._cached_question_filters is None:
-            # Cache is empty - create filters
-            questions = Question.objects.select_related('field_type')
-            dynamic_filters = []
-
-            for q in questions:
-                # Get all filters for this question (one per option family)
-                filter_classes = create_question_filters(q)
-                # Add each filter to the list
-                dynamic_filters.extend(filter_classes)
-                
-            # Save to cache
-            self.__class__._cached_question_filters = dynamic_filters
-        
-        # Return combined filters using cached filters
-        return base_filters + self.__class__._cached_question_filters
-
-    def get_export_queryset(self, request):
-        """
-        Return the base queryset for export. Filtering will be handled by the resource's filter_export method.
-
-        Args:
-            request: The HTTP request object
-
-        Returns:
-            Base queryset for export
-        """
-        return super().get_export_queryset(request)
-
-    def get_export_data(self, file_format, queryset, *args, **kwargs):
-        """
-        Extract data from the export form and pass it to the resource for filtering.
-
-        Args:
-            file_format: The export file format
-            queryset: The queryset to export
-            *args: Additional arguments
-            **kwargs: Additional keyword arguments including export_form
-
-        Returns:
-            Exported data in the specified format
-        """
-        # Store the export form for later use
-        self.export_form = kwargs.get('export_form')
-
-        # Extract form data to pass to the resource's filter_export method
-        if self.export_form and self.export_form.is_valid():
-            form_data = self.export_form.cleaned_data
-            
-            # Add form data to kwargs that will be passed to resource.filter_export
-            # Skip file_format since it's already a positional argument
-            for key, value in form_data.items():
-                if key != 'file_format':  # Skip file_format to avoid duplicate argument
-                    kwargs[key] = value
-
-        return super().get_export_data(file_format, queryset, *args, **kwargs)
-
-    def get_queryset(self, request):
-        """
-        Optimize the queryset for the admin interface by prefetching related responses.
-
-        Args:
-            request: The HTTP request object
-
-        Returns:
-            Optimized queryset with prefetched related objects
-        """
-        qs = super().get_queryset(request)
-        # Optimize the query by loading all related data in a single query
-        return qs.select_related('status').prefetch_related(
-            # Prefetch responses with their related data
-            Prefetch('responses', 
-                     queryset=Response.objects.select_related('question', 'question__field_type')
-                     .prefetch_related('selected_options')
-            )
-        )
-
-    def get_responses_count(self, obj):
-        """
-        Get the number of responses in the submission. Uses prefetched data.
-        """
-        # Use len instead of count() to prevent additional DB query
-        return len(obj.responses.all())
-
-    get_responses_count.short_description = _('Responses')
-
-    def get_phone_number(self, obj):
-        """
-        Get phone number from responses, if there is a question with phone field type.
-        Uses prefetched data to prevent additional queries.
-        """
-        try:
-            # Search in already loaded data instead of making a new query
-            for response in obj.responses.all():
-                if response.question.field_type.field_key.lower() == "phone number":
-                    return response.text_answer or '-'
-        except Exception:
-            pass
-        return '-'
-
-    get_phone_number.short_description = _('Phone Number')
-
-    def get_full_name(self, obj):
-        """
-        Get name from responses, if there is a question with name.
-        Uses prefetched data to prevent additional queries.
-        """
-        try:
-            # Search in already loaded data instead of making a new query
-            for response in obj.responses.all():
-                if response.question.field_type.field_key.lower() == "name":
-                    return response.text_answer or '-'
-        except Exception:
-            pass
-        return '-'
-
-    get_full_name.short_description = _('Full Name')
-
-    def get_language_certificate(self, obj):
-        """Get information about language certificate.
-        Uses prefetched data to prevent additional queries."""
-        try:
-            # Search in already loaded data instead of making a new query
-            for response in obj.responses.all():
-                if response.question.field_type.field_key.lower() == "language certificate":
-                    if response.text_answer:  # if there is user input
-                        return response.text_answer
-                    # if there are selected options - they are already loaded via prefetch_related
-                    options = response.selected_options.all()
-                    if options:
-                        return ', '.join(opt.text for opt in options)
-                    return '-'
-        except Exception:
-            pass
-        return '-'
-        
-    get_language_certificate.short_description = _('Language Certificate')
-
-    def get_field_of_study(self, obj):
-        """Get information about field of study.
-        Uses prefetched data to prevent additional queries."""
-        try:
-            # Search in already loaded data instead of making a new query
-            for response in obj.responses.all():
-                if response.question.field_type.field_key.lower() == "field of study":
-                    if response.text_answer:  # if there is user input
-                        return response.text_answer
-                    # if there are selected options - they are already loaded via prefetch_related
-                    options = response.selected_options.all()
-                    if options:
-                        return ', '.join(opt.text for opt in options)
-                    return '-'
-        except Exception:
-            pass
-        return '-'
-        
-    get_field_of_study.short_description = _('Field of Study')
-
-    def get_status_display(self, obj):
-        """Display status name from related SubmissionStatus model.
-        Uses select_related to prevent additional queries."""
-        # Status is already loaded via select_related
-        return obj.status.name
-        
-    get_status_display.short_description = _('Status')
-    
-    def changelist_view(self, request, extra_context=None):
-        """'new' filter is set by default, but if the user removed it manually - don't force it again."""
-
-        # If status filter is missing but other GET parameters exist → user removed the filter manually
-        if "status__code__exact" not in request.GET and request.GET:
-            return super().changelist_view(request, extra_context)
-
-        # If there are no parameters in GET request → it's the first visit, set status "new"
-        if not request.GET:
-            q = request.GET.copy()
-            q["status__code__exact"] = "new"
-            return HttpResponseRedirect(f"{request.path}?{q.urlencode()}")
-
-        return super().changelist_view(request, extra_context)
-
-    class Media:
-        js = 'admin/js/multi_select.js',
-        css = {
-            'all': ['admin/css/multi_select.css']
-        }
+# @register(SurveySubmission)
+# class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
+#     """Admin interface for SurveySubmission model."""
+#     resource_class = SurveySubmissionResource
+#     list_display = (
+#         'id',
+#         'get_full_name',
+#         'get_phone_number',
+#         'get_language_certificate',
+#         'get_field_of_study',
+#         'get_status_display',
+#         'source',
+#         'comment',
+#         'created_at',
+#         'get_responses_count'
+#     )
+#     list_filter = ('status', 'source', ('created_at', DateRangeFilter))
+#     search_fields = 'id', 'responses__text_answer', 'comment'
+#     readonly_fields = 'created_at',
+#     date_hierarchy = 'created_at'
+#     inlines = [ResponseInline]
+#     # export_form_class = SurveyExportForm
+#
+#     # Cache for question filters - will be created once at server startup
+#     _cached_question_filters = None
+#
+#     def get_list_filter(self, request):
+#         """
+#         Return a sequence containing the fields to be displayed as filters in
+#         the right sidebar of the changelist page.
+#
+#         Uses caching to prevent recreating filters on each request.
+#         """
+#         # Get base filters from the list_filter attribute
+#         base_filters = list(self.list_filter)
+#
+#         # Use cached filters if they already exist
+#         if self.__class__._cached_question_filters is None:
+#             # Cache is empty - create filters
+#             questions = Question.objects.select_related('field_type')
+#             dynamic_filters = []
+#
+#             for q in questions:
+#                 # Get all filters for this question (one per option family)
+#                 filter_classes = create_question_filters(q)
+#                 # Add each filter to the list
+#                 dynamic_filters.extend(filter_classes)
+#
+#             # Save to cache
+#             self.__class__._cached_question_filters = dynamic_filters
+#
+#         # Return combined filters using cached filters
+#         return base_filters + self.__class__._cached_question_filters
+#
+#     def get_export_queryset(self, request):
+#         """
+#         Return the base queryset for export. Filtering will be handled by the resource's filter_export method.
+#
+#         Args:
+#             request: The HTTP request object
+#
+#         Returns:
+#             Base queryset for export
+#         """
+#         return super().get_export_queryset(request)
+#
+#     def get_export_data(self, file_format, queryset, *args, **kwargs):
+#         """
+#         Extract data from the export form and pass it to the resource for filtering.
+#
+#         Args:
+#             file_format: The export file format
+#             queryset: The queryset to export
+#             *args: Additional arguments
+#             **kwargs: Additional keyword arguments including export_form
+#
+#         Returns:
+#             Exported data in the specified format
+#         """
+#         # Store the export form for later use
+#         self.export_form = kwargs.get('export_form')
+#
+#         # Extract form data to pass to the resource's filter_export method
+#         if self.export_form and self.export_form.is_valid():
+#             form_data = self.export_form.cleaned_data
+#
+#             # Add form data to kwargs that will be passed to resource.filter_export
+#             # Skip file_format since it's already a positional argument
+#             for key, value in form_data.items():
+#                 if key != 'file_format':  # Skip file_format to avoid duplicate argument
+#                     kwargs[key] = value
+#
+#         return super().get_export_data(file_format, queryset, *args, **kwargs)
+#
+#     def get_queryset(self, request):
+#         """
+#         Optimize the queryset for the admin interface by prefetching related responses.
+#
+#         Args:
+#             request: The HTTP request object
+#
+#         Returns:
+#             Optimized queryset with prefetched related objects
+#         """
+#         qs = super().get_queryset(request)
+#         # Optimize the query by loading all related data in a single query
+#         return qs.select_related('status').prefetch_related(
+#             # Prefetch responses with their related data
+#             Prefetch('responses',
+#                      queryset=Response.objects.select_related('question', 'question__field_type')
+#                      .prefetch_related('selected_options')
+#             )
+#         )
+#
+#     def get_responses_count(self, obj):
+#         """
+#         Get the number of responses in the submission. Uses prefetched data.
+#         """
+#         # Use len instead of count() to prevent additional DB query
+#         return len(obj.responses.all())
+#
+#     get_responses_count.short_description = _('Responses')
+#
+#     def get_phone_number(self, obj):
+#         """
+#         Get phone number from responses, if there is a question with phone field type.
+#         Uses prefetched data to prevent additional queries.
+#         """
+#         try:
+#             # Search in already loaded data instead of making a new query
+#             for response in obj.responses.all():
+#                 if response.question.field_type.field_key.lower() == "phone number":
+#                     return response.text_answer or '-'
+#         except Exception:
+#             pass
+#         return '-'
+#
+#     get_phone_number.short_description = _('Phone Number')
+#
+#     def get_full_name(self, obj):
+#         """
+#         Get name from responses, if there is a question with name.
+#         Uses prefetched data to prevent additional queries.
+#         """
+#         try:
+#             # Search in already loaded data instead of making a new query
+#             for response in obj.responses.all():
+#                 if response.question.field_type.field_key.lower() == "name":
+#                     return response.text_answer or '-'
+#         except Exception:
+#             pass
+#         return '-'
+#
+#     get_full_name.short_description = _('Full Name')
+#
+#     def get_language_certificate(self, obj):
+#         """Get information about language certificate.
+#         Uses prefetched data to prevent additional queries."""
+#         try:
+#             # Search in already loaded data instead of making a new query
+#             for response in obj.responses.all():
+#                 if response.question.field_type.field_key.lower() == "language certificate":
+#                     if response.text_answer:  # if there is user input
+#                         return response.text_answer
+#                     # if there are selected options - they are already loaded via prefetch_related
+#                     options = response.selected_options.all()
+#                     if options:
+#                         return ', '.join(opt.text for opt in options)
+#                     return '-'
+#         except Exception:
+#             pass
+#         return '-'
+#
+#     get_language_certificate.short_description = _('Language Certificate')
+#
+#     def get_field_of_study(self, obj):
+#         """Get information about field of study.
+#         Uses prefetched data to prevent additional queries."""
+#         try:
+#             # Search in already loaded data instead of making a new query
+#             for response in obj.responses.all():
+#                 if response.question.field_type.field_key.lower() == "field of study":
+#                     if response.text_answer:  # if there is user input
+#                         return response.text_answer
+#                     # if there are selected options - they are already loaded via prefetch_related
+#                     options = response.selected_options.all()
+#                     if options:
+#                         return ', '.join(opt.text for opt in options)
+#                     return '-'
+#         except Exception:
+#             pass
+#         return '-'
+#
+#     get_field_of_study.short_description = _('Field of Study')
+#
+#     def get_status_display(self, obj):
+#         """Display status name from related SubmissionStatus model.
+#         Uses select_related to prevent additional queries."""
+#         # Status is already loaded via select_related
+#         return obj.status.name
+#
+#     get_status_display.short_description = _('Status')
+#
+#     def changelist_view(self, request, extra_context=None):
+#         """'new' filter is set by default, but if the user removed it manually - don't force it again."""
+#
+#         # If status filter is missing but other GET parameters exist → user removed the filter manually
+#         if "status__code__exact" not in request.GET and request.GET:
+#             return super().changelist_view(request, extra_context)
+#
+#         # If there are no parameters in GET request → it's the first visit, set status "new"
+#         if not request.GET:
+#             q = request.GET.copy()
+#             q["status__code__exact"] = "new"
+#             return HttpResponseRedirect(f"{request.path}?{q.urlencode()}")
+#
+#         return super().changelist_view(request, extra_context)
+#
+#     class Media:
+#         js = 'admin/js/multi_select.js',
+#         css = {
+#             'all': ['admin/css/multi_select.css']
+#         }
 
 
 @register(AnswerOption)
@@ -331,8 +331,8 @@ class AnswerOptionAdmin(ImportExportModelAdmin, DraggableMPTTAdmin, CustomSortab
 class QuestionAdmin(ImportExportModelAdmin, CustomSortableAdminMixin, TranslationAdmin):
     """Admin interface for Question model."""
     resource_class = QuestionResource
-    list_display = ['title', 'input_type', 'field_type', 'is_required', 'created_at', 'order']
-    list_filter = ['input_type', 'field_type', 'is_required', 'created_at']
+    list_display = ['survey', 'title', 'input_type', 'field_type', 'is_required', 'created_at', 'order']
+    list_filter = ['survey', 'input_type', 'field_type', 'is_required', 'created_at']
     search_fields = ['title', 'field_type__title', 'placeholder']
     list_editable = 'is_required',
     inlines = [AnswerOptionInline]
@@ -340,7 +340,7 @@ class QuestionAdmin(ImportExportModelAdmin, CustomSortableAdminMixin, Translatio
     autocomplete_fields = ['field_type']
     fieldsets = [
         (None, {
-            'fields': ('title', 'placeholder', 'is_required')
+            'fields': ('survey', 'title', 'placeholder', 'is_required')
         }),
         (_('Input Configuration'), {
             'fields': ('input_type', 'field_type')
@@ -351,6 +351,14 @@ class QuestionAdmin(ImportExportModelAdmin, CustomSortableAdminMixin, Translatio
         js = (
             'js/hide_answer_options.js',
         )
+
+
+@register(Survey)
+class SurveyModelAdmin(ModelAdmin):
+    """Admin interface for Survey model."""
+    list_display = ['title', 'is_active', 'is_default', 'slug']
+    list_filter = ['is_active', 'is_default']
+    search_fields = ['title', 'slug']
 
 
 @register(InputFieldType)
@@ -402,3 +410,184 @@ class SubmissionStatusAdmin(ImportExportModelAdmin, CustomSortableAdminMixin, Tr
             'all': ['admin/css/status_colors.css']
         }
         js = ['admin/js/status_colors.js']
+
+
+@register(SurveySubmission)
+class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
+    """Admin interface for SurveySubmission model with dynamic question columns."""
+    resource_class = SurveySubmissionResource
+    # Базовые поля, которые всегда будут отображаться
+    base_list_display = [
+        'status',
+        'source',
+        'comment',
+        'created_at',
+        'get_responses_count'
+    ]
+    list_filter = 'survey', 'status', 'source', ('created_at', DateRangeFilter)
+    search_fields = 'id', 'responses__text_answer', 'comment'
+    readonly_fields = 'created_at',
+    date_hierarchy = 'created_at'
+    inlines = [ResponseInline]
+
+    # export_form_class = SurveyExportForm
+
+    def __init__(self, model, admin_site):
+        super().__init__(model, admin_site)
+        # Кэш для динамических методов
+        self._dynamic_methods_cache = {}
+
+    def get_list_display(self, request):
+        """
+        Динамически формируем список отображаемых полей на основе вопросов из базы данных.
+        """
+        # Получаем базовый список полей
+        list_display = ['id']
+
+        # Получаем все вопросы и сортируем их по порядку
+        questions = Question.objects.order_by('order')
+
+        # Для каждого вопроса создаем динамический метод получения ответа
+        for question in questions:
+            # Создаем метод только если его еще нет
+            method_name = f'get_question_{question.id}_answer'
+            if method_name not in self._dynamic_methods_cache:
+                # Создаем функцию динамически
+                def create_method(q_id):
+                    def method(self, obj):
+                        for response in obj.responses.all():
+                            if response.question_id == q_id:
+                                if response.text_answer:
+                                    return response.text_answer
+                                options = response.selected_options.all()
+                                if options:
+                                    return ', '.join(opt.text for opt in options)
+                                return '-'
+                        return '-'
+
+                    return method
+
+                # Создаем динамический метод
+                dynamic_method = create_method(question.id)
+                # Добавляем метод к классу администратора
+                setattr(SurveySubmissionAdmin, method_name, dynamic_method)
+                # Устанавливаем описание для колонки
+                getattr(SurveySubmissionAdmin, method_name).short_description = question.field_type.field_key
+                # Кэшируем метод
+                self._dynamic_methods_cache[method_name] = True
+
+            # Добавляем метод в список отображаемых полей
+            list_display.append(method_name)
+        list_display += self.base_list_display
+
+        return list_display
+
+    def get_list_filter(self, request):
+        """
+        Return a sequence containing the fields to be displayed as filters in
+        the right sidebar of the changelist page.
+        """
+        # Get base filters from the list_filter attribute
+        base_filters = list(self.list_filter)
+
+        # Add dynamic filters for each question
+        questions = Question.objects.all()
+        dynamic_filters = []
+
+        for q in questions:
+            # Get all filters for this question (one per option family)
+            filter_classes = create_question_filters(q)
+            # Add each filter to the list
+            dynamic_filters.extend(filter_classes)
+
+        # Return combined filters
+        return base_filters + dynamic_filters
+
+    def get_export_queryset(self, request):
+        """
+        Return the base queryset for export. Filtering will be handled by the resource's filter_export method.
+
+        Args:
+            request: The HTTP request object
+
+        Returns:
+            Base queryset for export
+        """
+        # We'll just log the form data for debugging but won't apply filters here
+        # as they will be applied in resource.filter_export
+        # if hasattr(self, 'export_form') and self.export_form.is_valid():
+        # print(f"Export form data: {self.export_form.cleaned_data}")
+
+        return super().get_export_queryset(request)
+
+    def get_export_data(self, file_format, queryset, *args, **kwargs):
+        """
+        Extract data from the export form and pass it to the resource for filtering.
+
+        Args:
+            file_format: The export file format
+            queryset: The queryset to export
+            *args: Additional arguments
+            **kwargs: Additional keyword arguments including export_form
+
+        Returns:
+            Exported data in the specified format
+        """
+        # Store the export form for later use
+        self.export_form = kwargs.get('export_form')
+
+        # Extract form data to pass to the resource's filter_export method
+        if self.export_form and self.export_form.is_valid():
+            form_data = self.export_form.cleaned_data
+            # print(f"Export form data: {form_data}")
+
+            # Add form data to kwargs that will be passed to resource.filter_export
+            # Skip file_format since it's already a positional argument
+            for key, value in form_data.items():
+                if key != 'file_format':  # Skip file_format to avoid duplicate argument
+                    kwargs[key] = value
+
+        # print(file_format, kwargs)
+        return super().get_export_data(file_format, queryset, *args, **kwargs)
+
+    def get_queryset(self, request):
+        """
+        Optimize the queryset for the admin interface by prefetching related responses.
+
+        Args:
+            request: The HTTP request object
+
+        Returns:
+            Optimized queryset with prefetched related objects
+        """
+        qs = super().get_queryset(request)
+        return qs.prefetch_related('responses', 'responses__selected_options', 'responses__question')
+
+    def get_responses_count(self, obj):
+        """
+        Получить количество ответов в заявке.
+        """
+        return obj.responses.count()
+
+    get_responses_count.short_description = _('Responses')
+
+    def changelist_view(self, request, extra_context=None):
+        """Фильтр 'new' ставится по умолчанию, но если пользователь убрал его вручную — не навязываем снова."""
+
+        # Если фильтр статуса отсутствует, но другие GET-параметры есть → юзер сам убрал фильтр
+        if "status__exact" not in request.GET and request.GET:
+            return super().changelist_view(request, extra_context)
+
+        # Если в GET-запросе вообще нет параметров → значит, это первый заход, ставим статус "new"
+        if not request.GET:
+            q = request.GET.copy()
+            q["status__exact"] = "new"
+            return HttpResponseRedirect(f"{request.path}?{q.urlencode()}")
+
+        return super().changelist_view(request, extra_context)
+
+    class Media:
+        js = 'admin/js/multi_select.js',
+        css = {
+            'all': ['admin/css/multi_select.css']
+        }

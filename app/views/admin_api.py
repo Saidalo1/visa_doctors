@@ -85,8 +85,8 @@ class SurveySubmissionViewSet(viewsets.ModelViewSet):
     destroy:
     Delete a survey submission.
     """
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsStaffOrAdmin]
+    #authentication_classes = [JWTAuthentication]
+    #permission_classes = [IsStaffOrAdmin]
     filterset_class = SurveySubmissionFilter
     filter_backends = [
         django_filters.rest_framework.DjangoFilterBackend,
@@ -182,8 +182,8 @@ class SurveySubmissionViewSet(viewsets.ModelViewSet):
 
 class SubmissionStatusViewSet(viewsets.ReadOnlyModelViewSet):
     """API endpoint for submission statuses."""
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsStaffOrAdmin]
+    #authentication_classes = [JWTAuthentication]
+    #permission_classes = [IsStaffOrAdmin]
     serializer_class = SubmissionStatusSerializer
     queryset = SubmissionStatus.objects.all()
     filterset_class = SubmissionStatusFilter

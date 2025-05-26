@@ -2,13 +2,15 @@
 
 from django.db.models import (
     CharField, TextField, PositiveIntegerField, ForeignKey, CASCADE, PROTECT,
-    TextChoices, ManyToManyField, UniqueConstraint, BooleanField
+    TextChoices, ManyToManyField, UniqueConstraint, BooleanField, SlugField
 )
 from django.utils.translation import gettext_lazy as _
 from mptt.fields import TreeForeignKey
 from mptt.models import MPTTModel
 
+from django.urls import reverse
 from shared.django import BaseModel
+from shared.django.models import TimeBaseModel
 
 
 class InputFieldType(BaseModel):
@@ -51,6 +53,43 @@ class InputFieldType(BaseModel):
         return self.title
 
 
+class Survey(TimeBaseModel):
+    """Survey/Questionnaire model."""
+    title = CharField(_('Survey title'), max_length=255)
+    description = TextField(_('Description'), blank=True, null=True)
+    slug = SlugField(
+        _('URL Slug'), 
+        max_length=100, 
+        unique=True,
+        help_text=_('URL-friendly name for the survey (used in frontend URLs)')
+    )
+    is_active = BooleanField(_('Is active'), default=True)
+    is_default = BooleanField(
+        _('Is default survey'), 
+        default=False,
+        help_text=_('If True, this survey will be used when no specific survey is selected')
+    )
+    
+    class Meta:
+        verbose_name = _('Survey')
+        verbose_name_plural = _('Surveys')
+        
+    def __str__(self):
+        return self.title
+        
+    def save(self, *args, **kwargs):
+        # Ensure only one default survey exists
+        if self.is_default:
+            Survey.objects.filter(is_default=True).update(is_default=False)
+        # If no default exists, make this one default
+        elif not Survey.objects.filter(is_default=True).exists() and not self.pk:
+            self.is_default = True
+        super().save(*args, **kwargs)
+        
+    def get_absolute_url(self):
+        return reverse('survey:survey-detail', kwargs={'slug': self.slug})
+
+
 class Question(BaseModel):
     """Survey question model."""
 
@@ -71,6 +110,15 @@ class Question(BaseModel):
         default=InputType.TEXT
     )
     order = PositiveIntegerField(_('Order'), default=0, db_index=True)
+    survey = ForeignKey(
+        'app.Survey',
+        on_delete=CASCADE,
+        related_name='questions',
+        verbose_name=_('Survey'),
+        help_text=_('Survey this question belongs to'),
+        null=True,
+        blank=True
+    )
     field_type = ForeignKey(
         'app.InputFieldType',
         null=True,
@@ -81,7 +129,7 @@ class Question(BaseModel):
     )
 
     class Meta:
-        ordering = ['order']
+        ordering = ['survey', 'order']
         verbose_name = _('Question')
         verbose_name_plural = _('Questions')
 
@@ -152,6 +200,16 @@ class SurveySubmission(BaseModel):
         TIKTOK = 'tiktok', _('TikTok')
         OTHER = 'other', _('Other')
 
+    survey = ForeignKey(
+        'app.Survey',
+        verbose_name=_('Survey'),
+        on_delete=PROTECT,  # Защита от удаления опросника с ответами
+        related_name='submissions',
+        help_text=_('Survey this submission belongs to'),
+        null=True,
+        blank=True
+    )
+    
     # Поле status теперь связано с моделью SubmissionStatus вместо использования фиксированных вариантов
     status = ForeignKey(
         'app.SubmissionStatus',
@@ -213,6 +271,15 @@ class Response(BaseModel):
                 name='unique_response_per_question'
             )
         ]
+        
+    def clean(self):
+        """Validate that the question belongs to the submission's survey."""
+        from django.core.exceptions import ValidationError
+        # Проверяем только если у обоих объектов указан опросник
+        if self.question.survey_id and self.submission.survey_id and self.question.survey_id != self.submission.survey_id:
+            raise ValidationError({
+                'question': _('Question must belong to the same survey as the submission')
+            })
 
     def __str__(self):
         if self.question.input_type == self.question.InputType.TEXT:

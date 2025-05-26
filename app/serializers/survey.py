@@ -6,7 +6,7 @@ from rest_framework.serializers import ModelSerializer, CharField
 from django.utils.translation import gettext_lazy as _
 import re
 
-from app.models import Question, AnswerOption, SurveySubmission, Response, InputFieldType
+from app.models import Question, AnswerOption, SurveySubmission, Response, InputFieldType, Survey
 from app.utils.telegram import notify_new_submission_async
 
 
@@ -31,14 +31,23 @@ class AnswerOptionSerializer(ModelSerializer):
         return AnswerOptionSerializer(obj.get_children(), many=True).data
 
 
+class SurveySerializer(ModelSerializer):
+    """Serializer for Survey model."""
+    
+    class Meta:
+        model = Survey
+        fields = 'id', 'title', 'description', 'slug', 'is_active', 'is_default'
+
+
 class QuestionSerializer(ModelSerializer):
     """Serializer for Question model."""
     options = AnswerOptionSerializer(many=True, read_only=True)
     field_type = InputFieldTypeSerializer(read_only=True)
+    survey = SurveySerializer(read_only=True)
 
     class Meta:
         model = Question
-        fields = 'id', 'title', 'input_type', 'options', 'field_type', 'is_required', 'placeholder'
+        fields = 'id', 'title', 'input_type', 'options', 'field_type', 'is_required', 'placeholder', 'survey'
 
 
 class ResponseSerializer(ModelSerializer):
@@ -101,19 +110,42 @@ class SurveySubmissionSerializer(ModelSerializer):
     """Survey submission serializer."""
     responses = ResponseSerializer(many=True)
     status = CharField(read_only=True)
+    survey_id = PrimaryKeyRelatedField(queryset=Survey.objects.filter(is_active=True), required=False, write_only=True)
     
     class Meta:
         """Metaclass."""
         model = SurveySubmission
-        fields = 'id', 'status', 'source', 'responses', 'created_at', 'updated_at'
+        fields = 'id', 'status', 'source', 'responses', 'created_at', 'updated_at', 'survey_id'
     
     def validate_responses(self, responses):
         """Validate that all required questions have responses."""
         # Get IDs of all questions in the responses
         question_ids = [response['question'].id for response in responses]
         
-        # Get a list of all required questions
-        required_questions = Question.objects.filter(is_required=True)
+        # Get survey ID from context or use default survey
+        survey_id = self.initial_data.get('survey_id')
+        if not survey_id:
+            # If survey_id is not provided, use the default survey
+            try:
+                default_survey = Survey.objects.get(is_default=True, is_active=True)
+                survey_id = default_survey.id
+            except Survey.DoesNotExist:
+                # No default survey found - consider all questions
+                survey_filter = {}
+        else:
+            # Check if the survey exists and is active
+            try:
+                Survey.objects.get(id=survey_id, is_active=True)
+                survey_filter = {'survey_id': survey_id}
+            except Survey.DoesNotExist:
+                raise ValidationError(_('The specified survey does not exist or is not active.'))
+        
+        # Get a list of all required questions for this survey
+        if 'survey_filter' in locals():
+            required_questions = Question.objects.filter(is_required=True, **survey_filter)
+        else:
+            required_questions = Question.objects.filter(is_required=True)
+            
         required_question_ids = set(required_questions.values_list('id', flat=True))
         
         # Check that all required questions have answers
@@ -138,6 +170,20 @@ class SurveySubmissionSerializer(ModelSerializer):
         
         # Get response data from validated_data
         responses_data = validated_data.pop('responses')
+        
+        # Handle survey_id if provided
+        survey_id = validated_data.pop('survey_id', None)
+        if survey_id:
+            # If survey_id is provided, set it directly
+            validated_data['survey'] = survey_id
+        else:
+            # If no survey_id is provided, use the default survey
+            try:
+                default_survey = Survey.objects.get(is_default=True, is_active=True)
+                validated_data['survey'] = default_survey
+            except Survey.DoesNotExist:
+                # Leave survey as null if no default found
+                pass
         
         # Check if status is specified, if not - use default status
         if 'status' not in validated_data:

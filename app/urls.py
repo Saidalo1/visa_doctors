@@ -4,7 +4,7 @@ from app.views import (
     AboutPreviewAPIView, AboutDetailAPIView,
     VisaTypeListAPIView, VisaTypeDetailAPIView,
     ResultCategoryPreviewAPIView, ResultCategoryDetailAPIView,
-    UniversityLogoListAPIView, QuestionListAPIView, SurveySubmissionCreateAPIView,
+    UniversityLogoListAPIView, QuestionListAPIView, SurveySubmissionCreateAPIView, SurveyListAPIView,
     ContactInfoAPIView, VisaStatusCheckAPIView, VisaPDFDownloadAPIView
 )
 
@@ -29,7 +29,8 @@ urlpatterns = [
     # Contact URLs
     path('contacts/', ContactInfoAPIView.as_view(), name='contacts'),
 
-    # Demand URLs
+    # Survey URLs
+    path('surveys/', SurveyListAPIView.as_view(), name='survey-list'),
     path('questions/', QuestionListAPIView.as_view(), name='question-list'),
     path('submit/', SurveySubmissionCreateAPIView.as_view(), name='survey-submit')
 ]

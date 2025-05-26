@@ -4,5 +4,5 @@ from app.views.pages import (
     ResultCategoryPreviewAPIView, ResultCategoryDetailAPIView,
     UniversityLogoListAPIView, ContactInfoAPIView
 )
-from app.views.survey import QuestionListAPIView, SurveySubmissionCreateAPIView
+from app.views.survey import QuestionListAPIView, SurveySubmissionCreateAPIView, SurveyListAPIView
 from app.views.visa import VisaStatusCheckAPIView, VisaPDFDownloadAPIView
