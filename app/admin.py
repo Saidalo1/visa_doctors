@@ -494,7 +494,7 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
         base_filters = list(self.list_filter)
 
         # Get the selected questionnaire from the request parameters
-        survey_id = request.GET.get('survey__id__exact')
+        survey_id = request.GET.get('survey')
 
         # If no questionnaire is selected, use the default questionnaire
         try:
@@ -621,12 +621,12 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
             # Получаем опросник по умолчанию
             default_survey = Survey.objects.filter(is_default=True, is_active=True).first()
             if default_survey:
-                q["survey__id__exact"] = str(default_survey.id)
+                q["survey"] = str(default_survey.id)
             else:
                 # Если нет опросника по умолчанию, пробуем найти любой активный опросник
                 any_active_survey = Survey.objects.filter(is_active=True).first()
                 if any_active_survey:
-                    q["survey__id__exact"] = str(any_active_survey.id)
+                    q["survey"] = str(any_active_survey.id)
         except Exception:
             pass
 
