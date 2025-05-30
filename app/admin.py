@@ -20,7 +20,6 @@ from app.models import (
 )
 from app.resource import QuestionResource, InputFieldTypeResource, SurveySubmissionResource, AnswerOptionResource
 
-
 from shared.django.admin import (
     AboutHighlightInline, VisaDocumentInline,
     AnswerOptionInline, CustomSortableAdminMixin, ResponseInline
@@ -101,7 +100,7 @@ class ContactInfoAdmin(TranslationAdmin):
 #         'created_at',
 #         'get_responses_count'
 #     )
-#     list_filter = ('status', 'source', ('created_at', DateRangeFilter))
+#     list_filter = ('survey', 'status', 'source', ('created_at', DateRangeFilter))
 #     search_fields = 'id', 'responses__text_answer', 'comment'
 #     readonly_fields = 'created_at',
 #     date_hierarchy = 'created_at'
@@ -371,6 +370,7 @@ class InputFieldTypeAdmin(ImportExportModelAdmin, TranslationAdmin):
     date_hierarchy = 'created_at'
     search_help_text = "Search by title, regex pattern or error message"
 
+
 # Temporarily hide Response admin
 # @register(Response)
 # class ResponseAdmin(ImportExportModelAdmin, TranslationAdmin):
@@ -418,6 +418,7 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
     resource_class = SurveySubmissionResource
     # Базовые поля, которые всегда будут отображаться
     base_list_display = [
+        'survey',
         'status',
         'source',
         'comment',
@@ -483,21 +484,43 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
         return list_display
 
     def get_list_filter(self, request):
+        """We create filters for the admin panel, taking into account the selected questionnaire.
+        If the questionnaire is selected, we show filters only for its questions.
+        If the questionnaire is not selected, we use the default questionnaire.
         """
-        Return a sequence containing the fields to be displayed as filters in
-        the right sidebar of the changelist page.
-        """
-        # Get base filters from the list_filter attribute
+        # Get basic filters
         base_filters = list(self.list_filter)
 
-        # Add dynamic filters for each question
-        questions = Question.objects.all()
-        dynamic_filters = []
+        # Get the selected questionnaire from the request parameters
+        survey_id = request.GET.get('survey__id__exact')
 
-        for q in questions:
-            # Get all filters for this question (one per option family)
+        # If no questionnaire is selected, use the default questionnaire
+        try:
+            from app.models import Survey
+
+            if not survey_id:
+                # Search for the default questionnaire
+                default_survey = Survey.objects.filter(is_default=True).first()
+                if default_survey:
+                    survey_id = default_survey.id
+        except:
+            pass
+
+        # Filter questions by the selected questionnaire
+        questions_query = Question.objects.all()
+        if survey_id:
+            try:
+                survey_id = int(survey_id)
+                questions_query = questions_query.filter(survey_id=survey_id)
+            except (ValueError, TypeError):
+                pass
+
+        # Add dynamic filters for each question
+        dynamic_filters = []
+        for q in questions_query:
+            # Get all filters for this question (one for each option family)
             filter_classes = create_question_filters(q)
-            # Add each filter to the list
+            # Add filters to the list
             dynamic_filters.extend(filter_classes)
 
         # Return combined filters
@@ -572,19 +595,40 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
     get_responses_count.short_description = _('Responses')
 
     def changelist_view(self, request, extra_context=None):
-        """Фильтр 'new' ставится по умолчанию, но если пользователь убрал его вручную — не навязываем снова."""
-
-        # Если фильтр статуса отсутствует, но другие GET-параметры есть → юзер сам убрал фильтр
-        if "status__exact" not in request.GET and request.GET:
+        """
+        Добавляем автоматическую фильтрацию по умолчанию:
+        1. Статус 'new' по умолчанию
+        2. Опросник по умолчанию, если есть
+        
+        Если пользователь убрал фильтры вручную - не навязываем их снова.
+        """
+        # Если в GET-запросе уже есть параметры - пользователь сам выбрал фильтры
+        if request.GET:
             return super().changelist_view(request, extra_context)
 
-        # Если в GET-запросе вообще нет параметров → значит, это первый заход, ставим статус "new"
-        if not request.GET:
-            q = request.GET.copy()
-            q["status__exact"] = "new"
-            return HttpResponseRedirect(f"{request.path}?{q.urlencode()}")
+        # Если это первый заход - добавляем фильтры по умолчанию
+        q = request.GET.copy()
 
-        return super().changelist_view(request, extra_context)
+        # Добавляем фильтр по статусу "new"
+        q["status__exact"] = "new"
+
+        # Добавляем фильтр по опроснику по умолчанию
+        try:
+            from app.models import Survey
+
+            # Получаем опросник по умолчанию
+            default_survey = Survey.objects.filter(is_default=True, is_active=True).first()
+            if default_survey:
+                q["survey__id__exact"] = str(default_survey.id)
+            else:
+                # Если нет опросника по умолчанию, пробуем найти любой активный опросник
+                any_active_survey = Survey.objects.filter(is_active=True).first()
+                if any_active_survey:
+                    q["survey__id__exact"] = str(any_active_survey.id)
+        except Exception:
+            pass
+
+        return HttpResponseRedirect(f"{request.path}?{q.urlencode()}")
 
     class Media:
         js = 'admin/js/multi_select.js',

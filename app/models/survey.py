@@ -115,9 +115,7 @@ class Question(BaseModel):
         on_delete=CASCADE,
         related_name='questions',
         verbose_name=_('Survey'),
-        help_text=_('Survey this question belongs to'),
-        null=True,
-        blank=True
+        help_text=_('Survey this question belongs to')
     )
     field_type = ForeignKey(
         'app.InputFieldType',
@@ -205,9 +203,7 @@ class SurveySubmission(BaseModel):
         verbose_name=_('Survey'),
         on_delete=PROTECT,  # Защита от удаления опросника с ответами
         related_name='submissions',
-        help_text=_('Survey this submission belongs to'),
-        null=True,
-        blank=True
+        help_text=_('Survey this submission belongs to')
     )
     
     # Поле status теперь связано с моделью SubmissionStatus вместо использования фиксированных вариантов

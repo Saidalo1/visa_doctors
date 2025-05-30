@@ -3,6 +3,47 @@
 from django.db import migrations
 
 
+# Функция для создания опросника по умолчанию
+def create_default_survey(apps, schema_editor):
+    Survey = apps.get_model('app', 'Survey')
+    
+    # Проверяем, нет ли уже опросника по умолчанию
+    if not Survey.objects.filter(is_default=True).exists():
+        Survey.objects.create(
+            title="Korea Study",
+            description="Survey to study in Korea",
+            slug="survey",
+            is_active=True,
+            is_default=True
+        )
+
+
+# Функция для обновления существующих вопросов и привязки их к опроснику
+def link_questions_to_survey(apps, schema_editor):
+    Survey = apps.get_model('app', 'Survey')
+    Question = apps.get_model('app', 'Question')
+    
+    # Получаем опросник по умолчанию
+    default_survey = Survey.objects.filter(is_default=True).first()
+    
+    if default_survey:
+        # Обновляем все вопросы без опросника
+        Question.objects.filter(survey__isnull=True).update(survey=default_survey)
+
+
+# Функция для обновления существующих заявок
+def link_submissions_to_survey(apps, schema_editor):
+    Survey = apps.get_model('app', 'Survey')
+    SurveySubmission = apps.get_model('app', 'SurveySubmission')
+    
+    # Получаем опросник по умолчанию
+    default_survey = Survey.objects.filter(is_default=True).first()
+    
+    if default_survey:
+        # Обновляем все заявки без опросника
+        SurveySubmission.objects.filter(survey__isnull=True).update(survey=default_survey)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -18,4 +59,8 @@ class Migration(migrations.Migration):
             model_name="survey",
             name="deleted_by_cascade",
         ),
+        # Добавляем операции для создания опросника и обновления связей
+        migrations.RunPython(create_default_survey),
+        migrations.RunPython(link_questions_to_survey),
+        migrations.RunPython(link_submissions_to_survey),
     ]
