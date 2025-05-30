@@ -7,6 +7,8 @@ from import_export.admin import ImportExportModelAdmin
 from modeltranslation.admin import TranslationAdmin
 from mptt.admin import DraggableMPTTAdmin
 
+from shared.django.admin.utils import AlwaysShowSurveyFilter
+
 try:
     # Import only from the django-jazzmin-admin-rangefilter module
     from rangefilter.filters import DateRangeFilter
@@ -425,7 +427,7 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
         'created_at',
         'get_responses_count'
     ]
-    list_filter = 'survey', 'status', 'source', ('created_at', DateRangeFilter)
+    list_filter = AlwaysShowSurveyFilter, 'status', 'source', ('created_at', DateRangeFilter)
     search_fields = 'id', 'responses__text_answer', 'comment'
     readonly_fields = 'created_at',
     date_hierarchy = 'created_at'
