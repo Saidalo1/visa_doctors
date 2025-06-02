@@ -166,7 +166,7 @@ class SurveySubmissionResource(resources.ModelResource):
         Override before_export to prefetch all responses and cache them for performance.
         """
         super().before_export(queryset, *args, **kwargs)
-        submission_ids = list(queryset.values_list('id', flat=True))[:200]
+        submission_ids = list(queryset.values_list('id', flat=True))
         all_responses = Response.objects.filter(submission_id__in=submission_ids).select_related(
             'question', 'question__field_type'
         ).prefetch_related('selected_options')
