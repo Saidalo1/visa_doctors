@@ -7,7 +7,7 @@ from import_export.admin import ImportExportModelAdmin
 from modeltranslation.admin import TranslationAdmin
 from mptt.admin import DraggableMPTTAdmin
 
-from shared.django.admin.utils import AlwaysShowSurveyFilter
+from shared.django.admin.utils import AlwaysShowSurveyFilter, StatusFilter
 
 try:
     # Import only from the django-jazzmin-admin-rangefilter module
@@ -427,7 +427,7 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
         'created_at',
         'get_responses_count'
     ]
-    list_filter = AlwaysShowSurveyFilter, 'status', 'source', ('created_at', DateRangeFilter)
+    list_filter = AlwaysShowSurveyFilter, StatusFilter, 'source', ('created_at', DateRangeFilter)
     search_fields = 'id', 'responses__text_answer', 'comment'
     readonly_fields = 'created_at',
     date_hierarchy = 'created_at'
@@ -612,7 +612,9 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
         q = request.GET.copy()
 
         # Добавляем фильтр по статусу "new"
-        q["status__exact"] = "new"
+        # Используем параметр status для кастомного StatusFilter
+        if "status" not in q:
+            q["status"] = "new"
 
         # Добавляем фильтр по опроснику по умолчанию
         try:
