@@ -121,7 +121,7 @@ class SurveySubmissionSerializer(ModelSerializer):
         """Validate that all required questions have responses."""
         # Get IDs of all questions in the responses
         question_ids = [response['question'].id for response in responses]
-        
+
         # Get survey ID from context or use default survey
         survey_id = self.initial_data.get('survey_id')
         if not survey_id:
@@ -139,7 +139,21 @@ class SurveySubmissionSerializer(ModelSerializer):
                 survey_filter = {'survey_id': survey_id}
             except Survey.DoesNotExist:
                 raise ValidationError(_('The specified survey does not exist or is not active.'))
-        
+            except ValueError:
+                raise ValidationError({'survey_id': _('Survey ID is invalid.')})
+
+        # Check if survey id is available
+        try:
+            survey_id = int(survey_id)
+        except ValueError:
+            raise ValidationError({'survey_id': _('Survey ID is invalid.')})
+
+        # Check all questions belongs to current survey or not
+        survey_ids = Question.objects.filter(id__in=question_ids).values_list('survey_id', flat=True).distinct()
+        if survey_ids.count() != 1 or survey_ids[0] != survey_id:
+            raise ValidationError(_('Not all questions belong to the current survey.'))
+
+
         # Get a list of all required questions for this survey
         if 'survey_filter' in locals():
             required_questions = Question.objects.filter(is_required=True, **survey_filter)

@@ -2,13 +2,13 @@
 
 from django.db.models import (
     CharField, TextField, PositiveIntegerField, ForeignKey, CASCADE, PROTECT,
-    TextChoices, ManyToManyField, UniqueConstraint, BooleanField, SlugField
+    TextChoices, ManyToManyField, UniqueConstraint, BooleanField, SlugField, Q, CheckConstraint, F
 )
+from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from mptt.fields import TreeForeignKey
 from mptt.models import MPTTModel
 
-from django.urls import reverse
 from shared.django import BaseModel
 from shared.django.models import TimeBaseModel
 
@@ -58,25 +58,33 @@ class Survey(TimeBaseModel):
     title = CharField(_('Survey title'), max_length=255)
     description = TextField(_('Description'), blank=True, null=True)
     slug = SlugField(
-        _('URL Slug'), 
-        max_length=100, 
+        _('URL Slug'),
+        max_length=100,
         unique=True,
         help_text=_('URL-friendly name for the survey (used in frontend URLs)')
     )
     is_active = BooleanField(_('Is active'), default=True)
     is_default = BooleanField(
-        _('Is default survey'), 
+        _('Is default survey'),
         default=False,
         help_text=_('If True, this survey will be used when no specific survey is selected')
     )
-    
+
     class Meta:
+        constraints = [
+            UniqueConstraint(
+                fields=['is_default'],
+                condition=Q(is_default=True),
+                name='unique_default_survey',
+                violation_error_message=_('Default survey already exists!')
+            ),
+        ]
         verbose_name = _('Survey')
         verbose_name_plural = _('Surveys')
-        
+
     def __str__(self):
         return self.title
-        
+
     def save(self, *args, **kwargs):
         # Ensure only one default survey exists
         if self.is_default:
@@ -85,7 +93,7 @@ class Survey(TimeBaseModel):
         elif not Survey.objects.filter(is_default=True).exists() and not self.pk:
             self.is_default = True
         super().save(*args, **kwargs)
-        
+
     def get_absolute_url(self):
         return reverse('survey:survey-detail', kwargs={'slug': self.slug})
 
@@ -205,7 +213,7 @@ class SurveySubmission(BaseModel):
         related_name='submissions',
         help_text=_('Survey this submission belongs to')
     )
-    
+
     # Поле status теперь связано с моделью SubmissionStatus вместо использования фиксированных вариантов
     status = ForeignKey(
         'app.SubmissionStatus',
