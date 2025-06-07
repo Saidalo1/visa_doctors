@@ -1,10 +1,12 @@
 """Views for survey app."""
 from django.db.models import Prefetch
 from drf_spectacular.utils import extend_schema, extend_schema_view
+import django_filters 
 from rest_framework.generics import ListAPIView, CreateAPIView
 
 from app.models import Question, AnswerOption, Survey
 from app.serializers.survey import QuestionSerializer, SurveySubmissionSerializer, SurveySerializer
+from shared.django.filters import QuestionFilter
 from shared.django import SURVEY, RecaptchaPermission
 
 
@@ -54,6 +56,8 @@ class SurveyListAPIView(ListAPIView):
 class QuestionListAPIView(ListAPIView):
     """API view for Question model list."""
     serializer_class = QuestionSerializer
+    filter_backends = [django_filters.rest_framework.DjangoFilterBackend]
+    filterset_class = QuestionFilter
     
     def get_queryset(self):
         # Get survey_id from query parameters

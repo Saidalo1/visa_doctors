@@ -43,11 +43,11 @@ class QuestionSerializer(ModelSerializer):
     """Serializer for Question model."""
     options = AnswerOptionSerializer(many=True, read_only=True)
     field_type = InputFieldTypeSerializer(read_only=True)
-    survey = SurveySerializer(read_only=True)
+    # survey = SurveySerializer(read_only=True)
 
     class Meta:
         model = Question
-        fields = 'id', 'title', 'input_type', 'options', 'field_type', 'is_required', 'placeholder', 'survey'
+        fields = 'id', 'title', 'input_type', 'options', 'field_type', 'is_required', 'placeholder'
 
 
 class ResponseSerializer(ModelSerializer):
