@@ -2,6 +2,8 @@ from adminsortable2.admin import SortableAdminBase
 from django.contrib.admin import register, ModelAdmin
 from django.db.models import Prefetch
 from django.http import HttpResponseRedirect
+from django.utils.text import Truncator
+from django.utils.html import strip_tags
 from django.utils.translation import gettext_lazy as _
 from import_export.admin import ImportExportModelAdmin
 from modeltranslation.admin import TranslationAdmin
@@ -447,8 +449,23 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
         # Получаем базовый список полей
         list_display = ['id']
 
+        # Get the selected questionnaire from the request parameters
+        survey_id = request.GET.get('survey')
+
+        # If no questionnaire is selected, use the default questionnaire
+        try:
+            from app.models import Survey
+
+            if not survey_id:
+                # Search for the default questionnaire
+                default_survey = Survey.objects.filter(is_default=True).first()
+                if default_survey:
+                    survey_id = default_survey.id
+        except:
+            pass
+
         # Получаем все вопросы и сортируем их по порядку
-        questions = Question.objects.order_by('order')
+        questions = Question.objects.filter(survey_id=survey_id).order_by('order')
 
         # Для каждого вопроса создаем динамический метод получения ответа
         for question in questions:
@@ -460,11 +477,14 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
                     def method(self, obj):
                         for response in obj.responses.all():
                             if response.question_id == q_id:
-                                if response.text_answer:
-                                    return response.text_answer
-                                options = response.selected_options.all()
-                                if options:
-                                    return ', '.join(opt.text for opt in options)
+                                answer_text = response.text_answer
+                                if not answer_text:
+                                    options = response.selected_options.all()
+                                    if options:
+                                        answer_text = ', '.join(opt.text for opt in options)
+                                if answer_text:
+                                    # Truncate the answer text to 50 characters
+                                    return Truncator(strip_tags(answer_text)).chars(50)
                                 return '-'
                         return '-'
 
