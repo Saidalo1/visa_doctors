@@ -1,10 +1,39 @@
 $(document).ready(function () {
     let questions = [];
 
-    async function fetchQuestions() {
+    async function fetchSurveysAndSelectRandom() {
         const currentDomain = window.location.origin;
         try {
-            const response = await fetch(`${currentDomain}/questions/`);
+            const response = await fetch(`${currentDomain}/surveys/`);
+            if (!response.ok) {
+                console.error("Failed to fetch surveys, status:", response.status);
+                alert("Failed to fetch surveys. Check console for details.");
+                return null;
+            }
+            const surveys = await response.json();
+            const activeSurveys = surveys.filter(s => s.is_active);
+            if (activeSurveys.length === 0) {
+                alert("No active surveys found.");
+                return null;
+            }
+            const randomSurvey = activeSurveys[Math.floor(Math.random() * activeSurveys.length)];
+            console.log("Selected random survey:", randomSurvey);
+            return randomSurvey.id;
+        } catch (error) {
+            console.error("Failed to fetch or process surveys", error);
+            alert("Error fetching surveys. Check console for details.");
+            return null;
+        }
+    }
+
+    async function fetchQuestions(surveyId) {
+        const currentDomain = window.location.origin;
+        try {
+            let questionsUrl = `${currentDomain}/questions/`;
+            if (surveyId) {
+                questionsUrl += `?survey_id=${surveyId}`;
+            }
+            const response = await fetch(questionsUrl);
             const data = await response.json();
             questions = data;
             console.log("Questions fetched:", questions);
@@ -24,7 +53,14 @@ $(document).ready(function () {
     $(document).on("click", "#auto-generate-request", async function () {
         console.log("Auto-generate button clicked");
 
-        await fetchQuestions();
+        const selectedSurveyId = await fetchSurveysAndSelectRandom();
+
+        if (!selectedSurveyId) {
+            // Alert already shown in fetchSurveysAndSelectRandom or no active surveys
+            return;
+        }
+
+        await fetchQuestions(selectedSurveyId);
 
         if (!questions.length) {
             alert("No questions available. Please fetch questions first.");
@@ -54,7 +90,11 @@ $(document).ready(function () {
             return response;
         });
 
-        const requestBody = JSON.stringify({responses}, null, 2);
+        const requestBodyData = { responses };
+        if (selectedSurveyId) {
+            requestBodyData.survey_id = selectedSurveyId;
+        }
+        const requestBody = JSON.stringify(requestBodyData, null, 2);
         const textArea = document.querySelector(".body-param__text");
 
         if (textArea) {
