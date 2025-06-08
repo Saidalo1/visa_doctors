@@ -9,6 +9,7 @@ from aiogram import Bot
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
+from aiogram.exceptions import TelegramAPIError
 from django.conf import settings
 from django.utils import timezone
 
@@ -18,6 +19,121 @@ from app.utils.db_reconnect import with_db_reconnect, with_db_reconnect_async
 
 logger = logging.getLogger(__name__)
 
+
+# --- Telegram Bot and Topic Management Utilities ---
+
+async def get_bot_instance() -> Bot | None:
+    """Initializes and returns a Bot instance based on settings.
+    Returns None if token is not configured.
+    """
+    token = getattr(settings, 'TELEGRAM_BOT_TOKEN', None)
+    if not token:
+        # This case will be handled in the model's save method to raise ValidationError
+        logger.error("TELEGRAM_BOT_TOKEN is not configured.")
+        return None
+    return Bot(token=token)
+
+
+async def get_chat_info(bot: Bot, chat_id: str):
+    """Gets information about a chat. Raises TelegramAPIError on failure."""
+    return await bot.get_chat(chat_id=chat_id)
+
+
+async def get_chat_member_info(bot: Bot, chat_id: str, user_id: int):
+    """Gets information about a member of a chat. Raises TelegramAPIError on failure."""
+    return await bot.get_chat_member(chat_id=chat_id, user_id=user_id)
+
+
+async def check_telegram_permissions_and_forum_status(bot: Bot, chat_id: str) -> tuple[bool, str]:
+    """Checks if the chat is a forum and the bot has admin rights to manage topics.
+    Returns (True, success_message) or (False, error_message).
+    """
+    try:
+        chat_info = await get_chat_info(bot, chat_id)
+    except TelegramAPIError as e:
+        logger.warning(f"Could not retrieve chat information for chat_id {chat_id}: {e}")
+        return False, f"Не удалось получить информацию о чате: {e.message}"
+    except Exception as e:
+        logger.error(f"Unexpected error retrieving chat info for {chat_id}: {e}", exc_info=True)
+        return False, f"Неожиданная ошибка при получении информации о чате: {e}"
+
+    if not chat_info.is_forum:
+        return False, "Указанный чат не является форумом (темы не включены)."
+
+    try:
+        bot_id = bot.id
+        member = await get_chat_member_info(bot, chat_id, bot_id)
+    except TelegramAPIError as e:
+        logger.warning(f"Could not retrieve bot's membership info in chat {chat_id}: {e}")
+        return False, f"Не удалось получить информацию о боте в чате: {e.message}"
+    except Exception as e:
+        logger.error(f"Unexpected error retrieving bot's membership info for {chat_id}: {e}", exc_info=True)
+        return False, f"Неожиданная ошибка при получении информации о боте в чате: {e}"
+
+    if member.status not in ['administrator', 'creator']:
+        return False, "Бот не является администратором в указанном чате."
+
+    if not member.can_manage_topics:
+        return False, "У бота нет разрешения на управление темами в этом чате."
+
+    return True, "Бот имеет необходимые разрешения в чате форума."
+
+
+async def create_telegram_forum_topic(bot: Bot, chat_id: str, topic_name: str) -> int | None:
+    """Creates a new forum topic. Returns topic_id on success, None on failure."""
+    try:
+        topic = await bot.create_forum_topic(chat_id=chat_id, name=topic_name)
+        logger.info(
+            f"Successfully created Telegram topic '{topic_name}' (ID: {topic.message_thread_id}) in chat {chat_id}.")
+        return topic.message_thread_id
+    except TelegramAPIError as e:
+        # This error will be caught in the model's save method to raise ValidationError
+        logger.error(f"Telegram API error creating topic '{topic_name}' in chat {chat_id}: {e.message}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error creating Telegram topic '{topic_name}' in chat {chat_id}: {e}", exc_info=True)
+        return None  # Or re-raise a custom exception
+
+
+async def edit_telegram_forum_topic(bot: Bot, chat_id: str, topic_id: int, new_topic_name: str) -> bool:
+    """Edits the name of an existing forum topic. Returns True on success, False on failure."""
+    try:
+        await bot.edit_forum_topic(chat_id=chat_id, message_thread_id=topic_id, name=new_topic_name)
+        logger.info(f"Successfully edited Telegram topic ID {topic_id} in chat {chat_id} to '{new_topic_name}'.")
+        return True
+    except TelegramAPIError as e:
+        # This error will be caught in the model's save method to raise ValidationError
+        logger.error(
+            f"Telegram API error editing topic ID {topic_id} to '{new_topic_name}' in chat {chat_id}: {e.message}")
+        return False
+    except Exception as e:
+        logger.error(f"Unexpected error editing Telegram topic ID {topic_id} in chat {chat_id}: {e}", exc_info=True)
+        return False  # Or re-raise a custom exception
+
+
+# @with_db_reconnect_async  # Temporarily commented out for debugging
+async def get_survey_topic_id_from_submission(submission_id: int) -> int | None:
+    """Retrieves the telegram_topic_id from the Survey related to the given submission_id."""
+    @sync_to_async(thread_sensitive=True)
+    def _get_survey_topic_id_sync():
+        try:
+            submission = SurveySubmission.objects.select_related('survey').get(id=submission_id)
+            if submission.survey and submission.survey.telegram_topic_id is not None:
+                return submission.survey.telegram_topic_id
+            return None
+        except SurveySubmission.DoesNotExist:
+            logger.warning(f"SurveySubmission with id {submission_id} does not exist when trying to get topic_id.") # Matched user's log message format
+            return None
+        except Exception as e:
+            # Log the full error with traceback for better debugging
+            logger.error(f"Error retrieving survey_topic_id for submission_id {submission_id}: {e}", exc_info=True)
+            return None
+
+    # Call the decorated synchronous function (which is now async)
+    return await _get_survey_topic_id_sync()
+
+
+# --- End Telegram Bot and Topic Management Utilities ---
 
 async def notify_admin_about_error(bot: Bot, error: Exception, context: str, submission_id: int = None) -> None:
     """
@@ -33,12 +149,12 @@ async def notify_admin_about_error(bot: Bot, error: Exception, context: str, sub
         error_text = str(error)
         if len(error_text) > 100:
             error_text = f"...{error_text[-100:]}"  # Берем последние 100 символов
-            
+
         message = f"❌ Xatolik: {context}\n"
         if submission_id:
             message += f"Ariza ID: #{submission_id}\n"
         message += f"Xatolik: {error_text}"
-            
+
         await bot.send_message(
             chat_id=settings.TELEGRAM_ADMIN_ID,
             text=message
@@ -47,7 +163,7 @@ async def notify_admin_about_error(bot: Bot, error: Exception, context: str, sub
         logger.error(f"Failed to notify admin about error: {admin_error}", exc_info=True)
 
 
-async def send_telegram_message(message: str, submission_id: int = None) -> bool:
+async def send_telegram_message(message: str, submission_id: int = None, survey_topic_id: int | None = None) -> bool:
     """
     Send a message to the configured Telegram chat.
     
@@ -71,8 +187,24 @@ async def send_telegram_message(message: str, submission_id: int = None) -> bool
         return False
 
     bot = None
+    actual_topic_id = survey_topic_id
     try:
-        bot = Bot(token=token)
+        bot = await get_bot_instance()
+        if not bot:
+            # This case should ideally be prevented by checks in Survey.save(),
+            # but as a fallback, log and exit if bot isn't configured.
+            logger.error("send_telegram_message: Bot instance could not be created. TELEGRAM_BOT_TOKEN likely missing.")
+            return False
+
+        if submission_id and actual_topic_id is None:
+            # If submission_id is provided and no explicit topic_id, try to get it from survey
+            # This call is already async due to @sync_to_async
+            actual_topic_id = await get_survey_topic_id_from_submission(submission_id)
+            if actual_topic_id:
+                logger.info(f"Retrieved topic_id {actual_topic_id} for submission {submission_id} to send message.")
+            else:
+                logger.info(
+                    f"No specific topic_id found for submission {submission_id}, message will be sent to general chat if configured, or fail if chat is forum-only.")
 
         # Create inline keyboard with buttons if submission_id is provided
         keyboard = None
@@ -84,11 +216,12 @@ async def send_telegram_message(message: str, submission_id: int = None) -> bool
             text=message,
             parse_mode=ParseMode.HTML,
             reply_markup=keyboard,
-            disable_web_page_preview=True  # Отключаем превью ссылок
+            message_thread_id=actual_topic_id,  # Send to specific topic if ID is available
+            disable_web_page_preview=True
         )
         return True
     except Exception as e:
-        logger.error(f"Failed to send Telegram notification: {e}")
+        logger.error(f"Failed to send Telegram notification: {e}", exc_info=True)
         if bot:
             await notify_admin_about_error(
                 bot=bot,
@@ -151,9 +284,9 @@ async def format_submission_notification(submission_id: int) -> str:
         # Iterate through all responses
         for response in responses:
             # Use field_key (if not, use question.title as a fallback)
-            field_key = (response.question.field_type.field_key 
-                        if response.question.field_type 
-                        else response.question.title)
+            field_key = (response.question.field_type.field_key
+                         if response.question.field_type
+                         else response.question.title)
 
             # For text responses
             if response.question.input_type == 'text':
@@ -279,6 +412,7 @@ def notify_new_submission_async(submission_id: int) -> None:
     Args:
         submission_id: Submission ID
     """
+
     async def run_async():
         await notify_new_submission(submission_id)
 
@@ -304,7 +438,8 @@ def get_submission_by_id(submission_id: int) -> 'SurveySubmission':
 
 @sync_to_async
 @with_db_reconnect(max_attempts=3, backoff_time=0.5)
-def get_submission_and_update_status(submission_id: int, new_status: str = None, comment: str = None) -> 'SurveySubmission':
+def get_submission_and_update_status(submission_id: int, new_status: str = None,
+                                     comment: str = None) -> 'SurveySubmission':
     """
     Get the submission object and update its status or comment.
     
@@ -318,7 +453,7 @@ def get_submission_and_update_status(submission_id: int, new_status: str = None,
     """
     submission = SurveySubmission.objects.select_related('status').get(id=submission_id)
     update_fields = []
-    
+
     if new_status:
         try:
             status_obj = SubmissionStatus.objects.get(code=new_status)
@@ -327,14 +462,14 @@ def get_submission_and_update_status(submission_id: int, new_status: str = None,
         except SubmissionStatus.DoesNotExist:
             logger.error(f"Status with code '{new_status}' not found")
             raise ValueError(f"Status with code '{new_status}' not found")
-        
+
     if comment is not None:
         submission.comment = comment
         update_fields.append('comment')
-        
+
     if update_fields:
         submission.save(update_fields=update_fields)
-        
+
     return submission
 
 
@@ -343,29 +478,29 @@ async def handle_comment_callback(callback_query: CallbackQuery, state: FSMConte
     try:
         # Get action and parameters
         action, *params = callback_query.data.split(':')
-        
+
         if action == 'edit_comment':
             # Handle comment editing
             submission_id = int(params[0])
-            
+
             # Store submission id and original message id for editing
             await state.update_data(
                 editing_submission_id=submission_id,
                 original_message_id=callback_query.message.message_id
             )
             await state.set_state(FilterStates.editing_comment)
-            
+
             # Create keyboard with back button
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="⬅️ Orqaga", callback_data=f"comment_back:{submission_id}")]
             ])
-            
+
             await callback_query.message.edit_text(
                 "Izoh qoldiring:",
                 reply_markup=keyboard
             )
             await callback_query.answer()
-            
+
         elif action == 'comment_back':
             # Regenerate submission text and keyboard
             submission_id = int(params[0])
@@ -377,10 +512,10 @@ async def handle_comment_callback(callback_query: CallbackQuery, state: FSMConte
                 parse_mode=ParseMode.HTML,
                 disable_web_page_preview=True
             )
-            
+
             await state.clear()
             await callback_query.answer()
-            
+
     except Exception as e:
         logger.error(f"Failed to handle comment callback: {e}")
         await callback_query.answer("❌ Xatolik yuz berdi")
@@ -475,7 +610,7 @@ async def create_submission_keyboard(submission_id: int) -> InlineKeyboardMarkup
     base_url = getattr(settings, 'BASE_URL', 'http://localhost:8000')
     admin_url = f"{base_url}/admin/app/surveysubmission/{submission_id}/change/"
     current_status = await get_submission_status(submission_id)
-    
+
     # Create a keyboard with two buttons
     keyboard = [
         [
@@ -486,7 +621,7 @@ async def create_submission_keyboard(submission_id: int) -> InlineKeyboardMarkup
             InlineKeyboardButton(text="Izoh o'zgartirish", callback_data=f"edit_comment:{submission_id}")
         ]
     ]
-    
+
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
@@ -494,6 +629,7 @@ async def create_submission_keyboard(submission_id: int) -> InlineKeyboardMarkup
 def get_all_statuses():
     """Get all statuses from the database."""
     return list(SubmissionStatus.objects.values_list('code', 'name'))
+
 
 async def create_status_selection_keyboard(submission_id: int, state) -> InlineKeyboardMarkup:
     """
@@ -509,11 +645,11 @@ async def create_status_selection_keyboard(submission_id: int, state) -> InlineK
     # Get the selected status from the state
     data = await state.get_data()
     selected_status = data.get(f'temp_status_{submission_id}')
-    
+
     # Get all statuses asynchronously
     statuses = await get_all_statuses()
     keyboard = []
-    
+
     # Add buttons for each status
     for status_code, status_name in statuses:
         # Add marker to the selected status
@@ -522,11 +658,11 @@ async def create_status_selection_keyboard(submission_id: int, state) -> InlineK
             text=label,
             callback_data=f"select_status:{submission_id}:{status_code}"
         )])
-    
+
     # Add 'Done' and 'Back' buttons
     keyboard.append([
         InlineKeyboardButton(text="✅ Готово", callback_data=f"apply_status:{submission_id}"),
         InlineKeyboardButton(text="⬅️ Назад", callback_data=f"back_to_main:{submission_id}")
     ])
-    
+
     return InlineKeyboardMarkup(inline_keyboard=keyboard)

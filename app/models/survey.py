@@ -2,7 +2,7 @@
 
 from django.db.models import (
     CharField, TextField, PositiveIntegerField, ForeignKey, CASCADE, PROTECT,
-    TextChoices, ManyToManyField, UniqueConstraint, BooleanField, SlugField, Q, CheckConstraint, F
+    TextChoices, ManyToManyField, UniqueConstraint, BooleanField, SlugField, Q, CheckConstraint, F, IntegerField
 )
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
@@ -11,6 +11,13 @@ from mptt.models import MPTTModel
 
 from shared.django import BaseModel
 from shared.django.models import TimeBaseModel
+from django.db import transaction
+from django.core.exceptions import ValidationError
+from django.conf import settings
+from asgiref.sync import async_to_sync
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class InputFieldType(BaseModel):
@@ -70,6 +77,12 @@ class Survey(TimeBaseModel):
         help_text=_('If True, this survey will be used when no specific survey is selected')
     )
 
+    telegram_topic_id = IntegerField(
+        _('Telegram Topic ID'),
+        help_text=_('The ID of the Telegram topic associated with this survey.')
+    )
+
+
     class Meta:
         constraints = [
             UniqueConstraint(
@@ -86,13 +99,129 @@ class Survey(TimeBaseModel):
         return self.title
 
     def save(self, *args, **kwargs):
-        # Ensure only one default survey exists
-        if self.is_default:
-            Survey.objects.filter(is_default=True).update(is_default=False)
-        # If no default exists, make this one default
-        elif not Survey.objects.filter(is_default=True).exists() and not self.pk:
-            self.is_default = True
-        super().save(*args, **kwargs)
+        from app.utils.telegram import (
+            get_bot_instance,
+            check_telegram_permissions_and_forum_status,
+            create_telegram_forum_topic,
+            edit_telegram_forum_topic
+        )
+
+        with transaction.atomic():
+            is_new = not self.pk
+            old_title = None
+            if not is_new:
+                # Retrieve the current title from DB for comparison later
+                # This avoids using a potentially stale self.title if it was changed in memory before save
+                try:
+                    old_title = Survey.objects.get(pk=self.pk).title
+                except Survey.DoesNotExist:
+                    # This should ideally not happen if self.pk is set for an existing instance
+                    # If it does, treat as if old_title couldn't be determined, effectively making title_changed=True if self.title is set
+                    pass
+
+            title_changed = not is_new and old_title != self.title
+
+            # --- Default survey logic ---
+            if self.is_default:
+                Survey.objects.filter(is_default=True).exclude(pk=self.pk).update(is_default=False)
+            elif is_new and not Survey.objects.filter(is_default=True).exists():
+                self.is_default = True
+            # --- End Default survey logic ---
+
+            # --- Telegram Pre-Save Logic (Strict) ---
+            bot = None
+            chat_id = getattr(settings, 'TELEGRAM_CHAT_ID', None)
+            telegram_enabled = getattr(settings, 'TELEGRAM_NOTIFICATIONS_ENABLED', False)
+            run_telegram_logic = telegram_enabled and chat_id
+
+            if run_telegram_logic:
+                if not settings.TELEGRAM_BOT_TOKEN:
+                    # Critical: Bot token must be configured
+                    raise ValidationError(_("Telegram bot token (TELEGRAM_BOT_TOKEN) is not configured. Cannot manage topics."))
+
+                try:
+                    bot = async_to_sync(get_bot_instance)() # get_bot_instance itself checks token, but explicit check above is clearer
+                    if not bot: # Should be caught by the check above, but as a safeguard
+                        raise ValidationError(_("Failed to initialize Telegram bot. Token might be invalid or missing."))
+
+                    # Permission checks are needed if it's a new survey or if the title of an existing survey changes
+                    # (as topic creation/editing will occur)
+                    if is_new or title_changed:
+                        can_manage, perm_message = async_to_sync(check_telegram_permissions_and_forum_status)(bot, chat_id)
+                        if not can_manage:
+                            raise ValidationError(_("Telegram permission/forum status check failed: %(message)s") % {'message': perm_message})
+
+                except ValidationError: # Re-raise validation errors from checks
+                    raise
+                except Exception as e:
+                    logger.error(f"Unexpected error during Telegram pre-save checks for Survey '{self.title or 'new'}': {e}", exc_info=True)
+                    raise ValidationError(_("An unexpected error occurred during Telegram pre-save checks: %(error)s") % {'error': str(e)})
+            # --- End Telegram Pre-Save Logic ---
+
+            super().save(*args, **kwargs) # Actual save to DB
+
+            # --- Telegram Post-Save Logic (Strict) ---
+            if run_telegram_logic: # 'bot' should be initialized if pre-save checks passed
+                if not bot: # Should not happen if pre-save logic is correct, but as a failsafe
+                    logger.error(f"Survey {self.pk} ('{self.title}') saved, but bot instance was unexpectedly None post-save. Skipping Telegram topic management.")
+                    # This state indicates a flaw in pre-save logic or an unexpected issue.
+                    # Depending on strictness, could raise an error here too, but pre-save should prevent this.
+                    return
+
+                try:
+                    if is_new:
+                        # For new surveys, topic creation is mandatory
+                        new_topic_id = async_to_sync(create_telegram_forum_topic)(bot, chat_id, self.title)
+                        if new_topic_id is None: # create_telegram_forum_topic returns None on failure
+                            # This is a critical failure for a new survey as per requirements
+                            raise ValidationError(
+                                _("Survey was saved, but failed to create the required Telegram topic. "
+                                  "The survey might be in an inconsistent state regarding Telegram integration. "
+                                  "Please check Telegram bot permissions and chat settings.")
+                            )
+
+                        # Successfully created, update the instance and the DB record
+                        # Use queryset.update to avoid recursion and re-triggering save signals
+                        Survey.objects.filter(pk=self.pk).update(telegram_topic_id=new_topic_id)
+                        self.telegram_topic_id = new_topic_id # Update the current instance field as well
+                        logger.info(f"Survey {self.pk} ('{self.title}') created and Telegram topic ID {new_topic_id} assigned.")
+
+                    elif title_changed:
+                        # For existing surveys with a title change, topic editing is attempted.
+                        # It's implied that self.telegram_topic_id MUST exist if it's not a new survey,
+                        # because new surveys without successful topic creation would have raised ValidationError.
+                        if not self.telegram_topic_id:
+                            # This case should ideally not be reached if logic for new surveys is strict.
+                            # It means an existing survey somehow has no topic ID, which is inconsistent.
+                            raise ValidationError(
+                                _("Survey title changed, but the survey (ID: %(survey_id)s) is missing a Telegram topic ID. "
+                                  "Cannot update Telegram topic name. This indicates a potential data inconsistency.")
+                                % {'survey_id': self.pk}
+                            )
+
+                        success = async_to_sync(edit_telegram_forum_topic)(bot, chat_id, self.telegram_topic_id, self.title)
+                        if not success:
+                            raise ValidationError(
+                                _("Survey title was updated, but failed to update the corresponding Telegram topic name (Topic ID: %(topic_id)s). "
+                                  "Please check Telegram bot permissions and chat settings.")
+                                % {'topic_id': self.telegram_topic_id}
+                            )
+                        logger.info(f"Survey {self.pk} ('{self.title}') title updated and Telegram topic ID {self.telegram_topic_id} name updated.")
+
+                except ValidationError: # Re-raise to ensure save transaction might be rolled back if supported
+                    raise
+                except Exception as e:
+                    # Catch-all for other unexpected errors during post-save Telegram operations
+                    logger.error(f"Unexpected error during post-save Telegram topic management for Survey {self.pk} ('{self.title}'): {e}", exc_info=True)
+                    # This is tricky: the survey is saved, but Telegram failed. Raising ValidationError here
+                    # might be too late for a clean rollback depending on DB and transaction handling.
+                    # However, for strictness, we signal a failure.
+                    raise ValidationError(
+                        _("Survey was saved/updated, but an unexpected error occurred during subsequent Telegram topic management: %(error)s. "
+                          "The survey's Telegram integration might be inconsistent.")
+                        % {'error': str(e)}
+                    )
+            # --- End Telegram Post-Save Logic ---
 
     def get_absolute_url(self):
         return reverse('survey:survey-detail', kwargs={'slug': self.slug})
