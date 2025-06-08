@@ -61,7 +61,7 @@ class QuestionListAPIView(ListAPIView):
     
     def get_queryset(self):
         # Get survey_id from query parameters
-        survey_id = self.request.query_params.get('survey')
+        survey_id = self.request.query_params.get('survey_id')
         
         # Base queryset with prefetching
         queryset = Question.objects.prefetch_related(

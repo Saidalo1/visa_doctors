@@ -323,6 +323,50 @@ class AnswerOptionAdmin(ImportExportModelAdmin, DraggableMPTTAdmin, CustomSortab
     search_fields = ['text']
     mptt_indent_field = "text"
 
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        # Ensure 'parent' field is present in the form
+        if 'parent' not in form.base_fields:
+            return form
+
+        if obj:  # Editing an existing AnswerOption
+            if obj.question:
+                base_queryset = AnswerOption.objects.filter(question=obj.question, parent__isnull=True)
+                queryset = base_queryset.exclude(pk=obj.pk)
+                if hasattr(obj, 'get_descendants'): # Check if instance is MPTT ready
+                    try:
+                        descendants = obj.get_descendants(include_self=False).values_list('pk', flat=True)
+                        queryset = queryset.exclude(pk__in=list(descendants))
+                    except Exception:
+                        # MPTT might not be initialized on a partially saved/invalid instance.
+                        pass
+                form.base_fields['parent'].queryset = queryset
+            else:
+                # Should not happen for an existing option, but as a fallback
+                form.base_fields['parent'].queryset = AnswerOption.objects.none()
+        else:  # Adding a new AnswerOption
+            # For new options, if a question is pre-selected via URL (e.g., from filter or custom add link)
+            # restrict parent choices to that question. Otherwise, allow any (MPTT handles tree_id).
+            question_id = request.GET.get('question', None) # Check if 'question' is in GET params
+            if not question_id and hasattr(self.model, 'question_id_for_new_instance_from_request'):
+                # Attempt to get question_id from a custom attribute if available
+                # This part is hypothetical and depends on how you might pass question_id
+                question_id = self.model.question_id_for_new_instance_from_request(request)
+
+            if question_id:
+                try:
+                    form.base_fields['parent'].queryset = AnswerOption.objects.filter(question_id=question_id, parent__isnull=True)
+                except ValueError:
+                     # Invalid question_id, fallback to empty or all
+                    form.base_fields['parent'].queryset = AnswerOption.objects.none() # Or .all() if preferred
+            else:
+                # No specific question context for a new option, allow selection from any question
+                # or make it empty if parent must belong to the same (future) question.
+                # For DraggableMPTTAdmin, it's often fine to allow broader selection for 'add' root/child cases.
+                # If question is a required field for AnswerOption, this will be caught at validation.
+                form.base_fields['parent'].queryset = AnswerOption.objects.none() # No question context, so no parents to choose from
+        return form
+
     def indented_title(self, obj):
         """Return the indented title for MPTT tree display."""
         return obj.text

@@ -49,6 +49,10 @@ class ResponseInline(StackedInline):
 
 
 class AnswerOptionInlineFormSet(BaseInlineFormSet):
+    def get_form_kwargs(self, index):
+        kwargs = super().get_form_kwargs(index)
+        kwargs['parent_object'] = self.instance  # self.instance here is the Question model instance
+        return kwargs
     """Form set for AnswerOption inline with validation."""
 
     def clean(self):
@@ -75,6 +79,38 @@ class AnswerOptionInlineForm(ModelForm):
         model = AnswerOption
         fields = 'text', 'parent', 'has_custom_input'
 
+    def __init__(self, *args, **kwargs):
+        # Pop custom kwargs before calling super
+        self.parent_object = kwargs.pop('parent_object', None)
+        super().__init__(*args, **kwargs)
+
+        if 'parent' not in self.fields:
+            return
+
+        current_question = None
+        if self.parent_object and self.parent_object.pk:
+            current_question = self.parent_object
+        
+        if current_question:
+            base_queryset = AnswerOption.objects.filter(question=current_question, parent__isnull=True)
+
+            if self.instance and self.instance.pk:  # Editing an existing AnswerOption
+                queryset = base_queryset.exclude(pk=self.instance.pk)
+                if hasattr(self.instance, 'get_descendants'): # Check if instance is MPTT ready
+                    try:
+                        descendants = self.instance.get_descendants(include_self=False).values_list('pk', flat=True)
+                        queryset = queryset.exclude(pk__in=list(descendants))
+                    except Exception:
+                        # Could log this if needed, MPTT might not be initialized
+                        # on a partially saved/invalid instance during form validation cycle.
+                        pass
+                self.fields['parent'].queryset = queryset
+            else:  # Adding a new AnswerOption
+                self.fields['parent'].queryset = base_queryset
+        else:
+            # No current_question (e.g. Question admin 'add' page before Question is saved)
+            self.fields['parent'].queryset = AnswerOption.objects.none()
+
 
 class AnswerOptionInline(TranslationStackedInline):
     """Inline admin for AnswerOption model."""
@@ -84,23 +120,3 @@ class AnswerOptionInline(TranslationStackedInline):
     extra = 2
     fields = 'text', 'parent', 'has_custom_input'
 
-    def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
-        if db_field.name == 'parent' and self:
-            # Get question_id from URL if we're in change view
-            path_parts = request.path.split('/')
-            if 'change' in path_parts:
-                try:
-                    question_id = path_parts[path_parts.index('change') - 1]
-                    if question_id and question_id.isdigit():
-                        kwargs['queryset'] = AnswerOption.objects.filter(
-                            parent__isnull=True,
-                            question_id=question_id
-                        )
-                    else:
-                        kwargs['queryset'] = AnswerOption.objects.filter(parent__isnull=True)
-                except (IndexError, ValueError):
-                    kwargs['queryset'] = AnswerOption.objects.filter(parent__isnull=True)
-            else:
-                # For add view, show all root options
-                kwargs['queryset'] = AnswerOption.objects.filter(parent__isnull=True)
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
