@@ -481,6 +481,14 @@ class SurveySubmissionAdmin(ImportExportModelAdmin, ModelAdmin):
 
     # export_form_class = SurveyExportForm
 
+    def get_export_resource_kwargs(self, request, *args, **kwargs):
+        kwargs = super().get_export_resource_kwargs(request, *args, **kwargs)
+        survey_id = request.GET.get('survey')
+        if survey_id:
+            kwargs['survey_id'] = survey_id
+        # print(f"Passing to resource kwargs: {kwargs}")
+        return kwargs
+
     def __init__(self, model, admin_site):
         super().__init__(model, admin_site)
         # Кэш для динамических методов

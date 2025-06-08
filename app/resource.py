@@ -27,11 +27,33 @@ class SurveySubmissionResource(resources.ModelResource):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # Создаем кэш и набор иерархических вариантов для каждого вопроса
+        # Create a cache and a set of hierarchical options for each question
         self.hierarchical_options = {}
-        # Получаем все вопросы, отсортированные по order
-        questions = Question.objects.select_related('field_type').order_by('order')
-        for question in questions:
+        # Get survey_id from kwargs
+        survey_id = kwargs.pop('survey_id', None)
+
+        # Filter questions based on survey_id
+        questions_queryset = Question.objects.select_related('field_type')
+
+        if survey_id:
+            questions_queryset = questions_queryset.filter(survey_id=survey_id)
+            # print(f"Resource using explicit survey_id: {survey_id}")
+        else:
+            # If survey_id is not passed, try to find the default survey
+            from app.models import Survey  # Import here to avoid circular import
+            default_survey = Survey.objects.filter(is_default=True).first()
+            if default_survey:
+                questions_queryset = questions_queryset.filter(survey_id=default_survey.id)
+                # print(f"Resource using default survey_id: {default_survey.id}")
+            # else:
+                # print("Resource: No survey_id provided and no default survey found. Exporting all questions.")
+                # If there is no survey_id and no default survey, load all questions (current behavior)
+                # or you can do questions_queryset = questions_queryset.none() if that is preferred
+                pass
+
+        questions = questions_queryset.order_by('order')
+        self.questions_for_export = list(questions)  # Store for get_export_order
+        for question in self.questions_for_export:
             # Если вопрос с выбором, вычисляем иерархические варианты
             if question.input_type in ['single_choice', 'multiple_choice']:
                 root_options = question.options.filter(parent__isnull=True).order_by('order', 'text')
@@ -85,10 +107,11 @@ class SurveySubmissionResource(resources.ModelResource):
         """
         Define the order of fields in the export.
         """
-        # Стандартные поля
+        # Standard fields
         fields_order = ['id', 'status', 'created_at']
-        # Добавляем поля вопросов и дополнительные колонки для иерархических опций
-        questions = Question.objects.order_by('order')
+        # Add question fields and additional columns for hierarchical options
+        # Use filtered questions from __init__
+        questions = getattr(self, 'questions_for_export', [])
         for question in questions:
             fields_order.append(f"question_{question.id}")
             if question.input_type in ['single_choice', 'multiple_choice']:
