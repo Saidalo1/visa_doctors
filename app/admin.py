@@ -406,6 +406,7 @@ class SurveyModelAdmin(ModelAdmin):
     list_display = ['title', 'is_active', 'is_default', 'slug']
     list_filter = ['is_active', 'is_default']
     search_fields = ['title', 'slug']
+    readonly_fields = 'telegram_topic_id',
 
 
 @register(InputFieldType)

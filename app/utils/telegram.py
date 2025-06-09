@@ -52,31 +52,31 @@ async def check_telegram_permissions_and_forum_status(bot: Bot, chat_id: str) ->
         chat_info = await get_chat_info(bot, chat_id)
     except TelegramAPIError as e:
         logger.warning(f"Could not retrieve chat information for chat_id {chat_id}: {e}")
-        return False, f"Не удалось получить информацию о чате: {e.message}"
+        return False, f"Could not retrieve chat info: {e.message}"
     except Exception as e:
         logger.error(f"Unexpected error retrieving chat info for {chat_id}: {e}", exc_info=True)
-        return False, f"Неожиданная ошибка при получении информации о чате: {e}"
+        return False, f"Unexpected error retrieving chat info: {e}"
 
     if not chat_info.is_forum:
-        return False, "Указанный чат не является форумом (темы не включены)."
+        return False, "The specified chat is not a forum (topics are not enabled)."
 
     try:
         bot_id = bot.id
         member = await get_chat_member_info(bot, chat_id, bot_id)
     except TelegramAPIError as e:
         logger.warning(f"Could not retrieve bot's membership info in chat {chat_id}: {e}")
-        return False, f"Не удалось получить информацию о боте в чате: {e.message}"
+        return False, f"Could not retrieve bot's membership info for {chat_id}: {e}"
     except Exception as e:
         logger.error(f"Unexpected error retrieving bot's membership info for {chat_id}: {e}", exc_info=True)
-        return False, f"Неожиданная ошибка при получении информации о боте в чате: {e}"
+        return False, f"Unexpected error retrieving bot's membership info: {e}"
 
     if member.status not in ['administrator', 'creator']:
-        return False, "Бот не является администратором в указанном чате."
+        return False, "The bot is not an administrator in the specified chat."
 
     if not member.can_manage_topics:
-        return False, "У бота нет разрешения на управление темами в этом чате."
+        return False, "The bot does not have permission to manage topics in this chat."
 
-    return True, "Бот имеет необходимые разрешения в чате форума."
+    return True, "The bot has the required permissions in the forum chat."
 
 
 async def create_telegram_forum_topic(bot: Bot, chat_id: str, topic_name: str) -> int | None:
