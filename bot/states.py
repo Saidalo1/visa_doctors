@@ -4,7 +4,11 @@ from aiogram.fsm.state import StatesGroup, State
 
 class FilterStates(StatesGroup):
     """States for filter selection and configuration."""
-    
+
+    # New two-stage filtering states
+    choosing_survey = State()     # User is choosing a survey
+    choosing_filters = State()    # User is choosing filters for a selected survey
+
     # Main states
     selecting_filter = State()  # Выбор фильтра из списка
     entering_value = State()    # Ввод значения для фильтра

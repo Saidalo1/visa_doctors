@@ -9,7 +9,7 @@ from typing import List, Dict, Any, Optional
 from asgiref.sync import sync_to_async
 from django.db.models import Q, QuerySet
 
-from app.models import SurveySubmission, Question, SubmissionStatus, AnswerOption
+from app.models import Survey, SurveySubmission, Question, SubmissionStatus, AnswerOption
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -49,22 +49,24 @@ logger.propagate = False
 
 class SurveyFilter:
     """Filter manager for survey submissions."""
-    
-    def __init__(self, state: Dict[str, Any] = None):
+
+    def __init__(self, state: Dict[str, Any] = None, survey_id: Optional[int] = None):
         """Initialize filter manager."""
         logger.debug(f"Initializing SurveyFilter with state: {state}")
-        
+
         self._date_filters = {}
         self._selected_dates = set()
         self._response_filters_data = {}
         self._status_filters = set()
         self._questions = None  # Initialize _questions attribute
-        
+        self.survey_id = survey_id
+
         if state:
             self._date_filters = state.get('date_filters', {})
             self._selected_dates = set(state.get('selected_dates', []))
             self._response_filters_data = state.get('response_filters', {})
             self._status_filters = set(state.get('status_filters', set()))
+            self.survey_id = state.get('survey_id', survey_id)
         
         logger.debug(f"Initialized with date_filters: {self._date_filters}")
         logger.debug(f"Initialized with selected_dates: {self._selected_dates}")
@@ -73,9 +75,14 @@ class SurveyFilter:
         
     @property
     def questions(self):
-        """Lazy load questions."""
+        """Lazy load questions based on selected survey."""
         if self._questions is None:
-            self._questions = Question.objects.select_related('field_type').all()
+            if self.survey_id:
+                logger.debug(f"Loading questions for survey_id: {self.survey_id}")
+                self._questions = Question.objects.filter(survey_id=self.survey_id).select_related('field_type').all()
+            else:
+                logger.warning("No survey_id provided, loading all questions.")
+                self._questions = Question.objects.select_related('field_type').all()
         return self._questions
         
     @property
@@ -91,6 +98,7 @@ class SurveyFilter:
     def get_state(self) -> Dict[str, Any]:
         """Get current filter state as dict."""
         return {
+            'survey_id': self.survey_id,
             'date_filters': self._date_filters,
             'response_filters': self._response_filters_data,
             'selected_dates': list(self._selected_dates),
@@ -226,16 +234,27 @@ class SurveyFilter:
             logger.error(f"Question {question_id} not found")
             pass
             
+    @staticmethod
     @sync_to_async
-    def get_filtered_submissions(self) -> QuerySet:
+    def get_surveys() -> List[Dict[str, Any]]:
+        """Get all active surveys."""
+        surveys = Survey.objects.filter(is_active=True).order_by('title')
+        return [{'id': survey.id, 'title': survey.title} for survey in surveys]
+
+    @sync_to_async
+    def get_filtered_submissions(self) -> QuerySet[SurveySubmission]:
         """Get submissions filtered by all active filters."""
         logger.debug("Getting filtered submissions")
         logger.debug(f"Date filters: {self._date_filters}")
         logger.debug(f"Response filters: {self._response_filters_data}")
         logger.debug(f"Status filters: {self._status_filters}")
         
-        # Start with all submissions
-        queryset = SurveySubmission.objects.all()
+        # Start with submissions for the selected survey
+        if not self.survey_id:
+            logger.warning("No survey ID selected, returning empty queryset.")
+            return SurveySubmission.objects.none()
+
+        queryset = SurveySubmission.objects.filter(survey_id=self.survey_id)
         
         # Apply date filters if present
         if self._date_filters:

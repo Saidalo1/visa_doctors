@@ -25,7 +25,8 @@ from bot.filters import SurveyFilter
 from bot.keyboards import (
     get_filters_menu,
     get_calendar_keyboard,
-    get_results_keyboard
+    get_results_keyboard,
+    get_surveys_keyboard
 )
 from bot.states import FilterStates
 
@@ -58,29 +59,60 @@ RESULTS_PER_PAGE = 5
 async def cmd_start(message: types.Message, state: FSMContext):
     """
     Handle /start command.
-    Show welcome message and main menu.
+    Show welcome message and survey selection menu.
     """
     logger.debug("Processing /start command")
-    
-    # Create new empty filter manager
-    filter_manager = SurveyFilter()
-    # Reset state
     await state.clear()
-    
-    # Get available filters
+
+    surveys = await SurveyFilter.get_surveys()
+    if not surveys:
+        await message.answer("❌ Активных опросов не найдено.")
+        return
+
+    await state.set_state(FilterStates.choosing_survey)
+    await message.answer(
+        "👋 Добро пожаловать! Выберите опрос для фильтрации:",
+        reply_markup=get_surveys_keyboard(surveys)
+    )
+
+
+async def select_survey(callback_query: types.CallbackQuery, state: FSMContext):
+    """Process survey selection and show filters menu."""
+    survey_id = int(callback_query.data.split('_')[1])
+    logger.debug(f"Selected survey_id: {survey_id}")
+
+    # Store survey_id and set state
+    await state.update_data(survey_id=survey_id)
+    await state.set_state(FilterStates.choosing_filters)
+
+    # Create filter manager for the selected survey
+    filter_manager = SurveyFilter(survey_id=survey_id)
     filters = await filter_manager.get_available_filters()
-    logger.debug(f"Available filters: {filters}")
     
-    # Store initial state
+    # Save initial filter state
     await state.update_data(
         filter_state=filter_manager.get_state(),
-        available_filters=filters  # Store available filters
+        available_filters=filters
     )
-    
-    await message.answer(
-        "👋 Добро пожаловать в систему фильтрации заявок!",
+
+    await callback_query.message.edit_text(
+        "📊 Выберите фильтр из списка:",
         reply_markup=get_filters_menu(filters)
     )
+    await callback_query.answer()
+
+
+async def back_to_surveys(callback_query: types.CallbackQuery, state: FSMContext):
+    """Go back to survey selection."""
+    # Essentially, restart the process
+    await state.clear()
+    surveys = await SurveyFilter.get_surveys()
+    await state.set_state(FilterStates.choosing_survey)
+    await callback_query.message.edit_text(
+        "👋 Добро пожаловать! Выберите опрос для фильтрации:",
+        reply_markup=get_surveys_keyboard(surveys)
+    )
+    await callback_query.answer()
 
 
 async def show_filters(message: types.Message, state: FSMContext):
@@ -88,7 +120,12 @@ async def show_filters(message: types.Message, state: FSMContext):
     # Get filter state from storage
     data = await state.get_data()
     filter_state = data.get('filter_state', None)
-    filter_manager = SurveyFilter(filter_state)
+    survey_id = data.get('survey_id')
+    if not survey_id:
+        await message.answer("❌ Ошибка: опрос не выбран. Пожалуйста, начните заново с /start")
+        return
+
+    filter_manager = SurveyFilter(state=filter_state, survey_id=survey_id)
     filters = await filter_manager.get_available_filters()
     active_filters = await filter_manager.get_active_filters()
 
@@ -210,7 +247,11 @@ async def process_filter_callback(callback_query: types.CallbackQuery, state: FS
                 return
                 
         # Handle filter selection
-        if callback_query.data.startswith("filter_"):
+        if callback_query.data.startswith("survey_"):
+            await select_survey(callback_query, state)
+        elif callback_query.data == "back_to_surveys":
+            await back_to_surveys(callback_query, state)
+        elif callback_query.data.startswith("filter_"):
             logger.debug("Processing filter selection")
             parts = callback_query.data.split("_", 2)  # Split into 3 parts max
             
@@ -807,43 +848,43 @@ async def export_results(callback_query: types.CallbackQuery, state: FSMContext)
         await callback_query.message.answer("❌ Ошибка при экспорте данных")
 
 
-async def clear_filters(message: types.Message | types.CallbackQuery, state: FSMContext):
-    """Clear all active filters."""
+async def clear_filters(callback_query: types.CallbackQuery, state: FSMContext):
+    """Clear all active filters for the current survey."""
     try:
-        # Create new empty filter manager and get available filters
-        filter_manager = SurveyFilter()
+        data = await state.get_data()
+        survey_id = data.get('survey_id')
+
+        if not survey_id:
+            await callback_query.answer("❌ Ошибка: опрос не выбран.", show_alert=True)
+            return
+
+        # Create a new filter manager for the same survey, clearing old filters
+        filter_manager = SurveyFilter(survey_id=survey_id)
         filters = await filter_manager.get_available_filters()
-        
-        # Reset state and store initial data
-        await state.clear()
+
+        # Update state, preserving survey_id and available_filters
         await state.update_data(
             filter_state=filter_manager.get_state(),
             available_filters=filters
         )
-        
-        message_text = (
-            "🔄 Все фильтры сброшены\n\n"
-            "📊 Выберите фильтр из списка:"
+
+        message = callback_query.message
+        await message.edit_text(
+            "Фильтры сброшены. Выберите новые фильтры:",
+            reply_markup=get_filters_menu(filters)
         )
-        
-        if isinstance(message, types.CallbackQuery):
-            await message.message.edit_text(
-                message_text,
-                reply_markup=get_filters_menu(filters)
-            )
-            await message.answer()
-        else:
-            await message.answer(
-                message_text,
-                reply_markup=get_filters_menu(filters)
-            )
+        await callback_query.answer()
+
     except TelegramBadRequest as e:
         if "message is not modified" in str(e):
             # Ignore this error - message is already in desired state
-            if isinstance(message, types.CallbackQuery):
-                await message.answer("✅ Фильтры уже сброшены")
+            await callback_query.answer("✅ Фильтры уже сброшены")
             return
         raise
+
+    except Exception as e:
+        logger.error(f"Error clearing filters: {e}", exc_info=True)
+        await callback_query.answer("❌ Произошла ошибка при сбросе фильтров")
 
 
 async def process_callback(callback_query: types.CallbackQuery, state: FSMContext):
@@ -851,8 +892,14 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
     try:
         logger.debug(f"Processing callback data: {callback_query.data}")
         
+        # Handle survey selection and going back
+        if callback_query.data.startswith("survey_"):
+            await select_survey(callback_query, state)
+        elif callback_query.data == "back_to_surveys":
+            await back_to_surveys(callback_query, state)
+
         # Handle pagination first
-        if callback_query.data.startswith('page_'):
+        elif callback_query.data.startswith('page_'):
             logger.debug("Processing pagination callback")
             try:
                 page = int(callback_query.data.split('_')[1])

@@ -10,6 +10,19 @@ from aiogram.types import (
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
+def get_surveys_keyboard(surveys: List[Dict[str, Any]]) -> InlineKeyboardMarkup:
+    """Get surveys keyboard."""
+    keyboard = InlineKeyboardBuilder()
+    for survey in surveys:
+        keyboard.row(
+            InlineKeyboardButton(
+                text=survey['title'],
+                callback_data=f"survey_{survey['id']}"
+            )
+        )
+    return keyboard.as_markup()
+
+
 def get_filters_menu(
     filters: List[Dict],
     current_filter: Optional[str] = None,
@@ -117,6 +130,12 @@ def get_filters_menu(
                 callback_data="clear_filters"
             )
         )
+
+        # Add back to surveys button
+        keyboard.row(InlineKeyboardButton(
+            text="🔙 Назад к выбору опроса",
+            callback_data="back_to_surveys"
+        ))
     
     return keyboard.as_markup()
 
