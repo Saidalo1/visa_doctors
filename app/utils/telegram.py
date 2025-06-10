@@ -216,7 +216,7 @@ async def send_telegram_message(message: str, submission_id: int = None, survey_
             text=message,
             parse_mode=ParseMode.HTML,
             reply_markup=keyboard,
-            message_thread_id=actual_topic_id,  # Send to specific topic if ID is available
+            message_thread_id=actual_topic_id if actual_topic_id != 1 else None,  # Send to specific topic if ID is available
             disable_web_page_preview=True
         )
         return True
