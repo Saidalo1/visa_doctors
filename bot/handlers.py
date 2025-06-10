@@ -1,16 +1,16 @@
 """Command and message handlers for Telegram bot."""
 import logging
 from logging.handlers import RotatingFileHandler
-import os
+import io
 import sys
-import tempfile
 from datetime import datetime
 
 from aiogram import types
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
-from aiogram.types import FSInputFile
+from aiogram.types import BufferedInputFile
+
 from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from asgiref.sync import sync_to_async
@@ -773,30 +773,17 @@ async def show_results(message: types.Message | types.Message, state: FSMContext
 
 
 @sync_to_async
-def perform_export(queryset):
-    """Perform export in synchronous context."""
-    try:
-        # Используем наш улучшенный SurveySubmissionResource
-        resource = SurveySubmissionResource()
-        file_format = XLSX()
-        
-        # Create temporary file
-        with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as temp_file:
-            filename = temp_file.name
-            
-            # Экспортируем данные с форматированием
-            dataset = resource.export(queryset, file_format=file_format)
-            export_bytes = dataset.xlsx
-            if isinstance(export_bytes, str):
-                export_bytes = export_bytes.encode('utf-8')
-                
-            temp_file.write(export_bytes)
-            
-        return filename
-        
-    except Exception as e:
-        logger.error(f"Export error: {str(e)}", exc_info=True)
-        raise
+def perform_export(queryset, survey_id):
+    """
+    Performs the actual data export using django-import-export.
+    """
+    # This needs to run in a sync context
+    resource = SurveySubmissionResource(survey_id=survey_id)
+    dataset = resource.export(queryset)
+    export_bytes = dataset.xlsx
+    if isinstance(export_bytes, str):
+        export_bytes = export_bytes.encode('utf-8')
+    return export_bytes
 
 
 async def export_results(callback_query: types.CallbackQuery, state: FSMContext):
@@ -805,10 +792,15 @@ async def export_results(callback_query: types.CallbackQuery, state: FSMContext)
         logger.debug("Starting export process")
         data = await state.get_data()
         filter_state = data.get('filter_state', {})
-        filter_manager = SurveyFilter(filter_state)
+        survey_id = data.get('survey_id')
+
+        if not survey_id:
+            await callback_query.answer("❌ Ошибка: опрос не выбран.", show_alert=True)
+            return
 
         # Get filtered queryset
         logger.debug("Getting filtered submissions for export")
+        filter_manager = SurveyFilter(filter_state, survey_id=survey_id)
         queryset = await filter_manager.get_filtered_submissions()
 
         if queryset:
@@ -818,27 +810,19 @@ async def export_results(callback_query: types.CallbackQuery, state: FSMContext)
             
             # Perform export in synchronous context
             try:
-                temp_filename = await perform_export(queryset)
-                logger.debug(f"File exported successfully to {temp_filename}")
+                file_content = await perform_export(queryset, survey_id)
+                logger.debug(f"File exported successfully")
 
                 # Send file
                 logger.debug("Sending file to user")
                 await callback_query.message.answer_document(
-                    FSInputFile(temp_filename, filename="export.xlsx"),
+                    BufferedInputFile(file_content, filename="export.xlsx"),
                     caption="✅ Экспорт выполнен успешно"
                 )
                 logger.debug("File sent successfully")
             except Exception as e:
                 logger.error(f"Error during export: {e}", exc_info=True)
                 await callback_query.message.answer("❌ Ошибка при экспорте данных")
-            finally:
-                # Delete temporary file
-                try:
-                    if 'temp_filename' in locals():
-                        os.unlink(temp_filename)
-                        logger.debug("Temporary file deleted")
-                except Exception as e:
-                    logger.error(f"Error deleting temporary file: {e}")
         else:
             logger.debug("No data to export")
             await callback_query.answer("❌ Нет данных для экспорта")
