@@ -126,4 +126,4 @@ class QuestionListAPIView(ListAPIView):
 class SurveySubmissionCreateAPIView(CreateAPIView):
     """API view for creating SurveySubmission."""
     serializer_class = SurveySubmissionSerializer
-    # permission_classes = [RecaptchaPermission]
+    permission_classes = [RecaptchaPermission]
