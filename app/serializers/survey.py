@@ -36,7 +36,7 @@ class SurveySerializer(ModelSerializer):
     
     class Meta:
         model = Survey
-        fields = 'id', 'title', 'description', 'slug', 'is_active', 'is_default'
+        fields = 'id', 'title', 'description', 'slug', 'is_active', 'is_default', 'front_content'
 
 
 class QuestionSerializer(ModelSerializer):

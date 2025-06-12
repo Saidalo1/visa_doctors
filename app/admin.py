@@ -401,7 +401,7 @@ class QuestionAdmin(ImportExportModelAdmin, CustomSortableAdminMixin, Translatio
 
 
 @register(Survey)
-class SurveyModelAdmin(ModelAdmin):
+class SurveyModelAdmin(TranslationAdmin):
     """Admin interface for Survey model."""
     list_display = ['title', 'is_active', 'is_default', 'slug']
     list_filter = ['is_active', 'is_default']

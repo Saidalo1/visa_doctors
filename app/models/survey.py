@@ -9,6 +9,7 @@ from django.utils.translation import gettext_lazy as _
 from mptt.fields import TreeForeignKey
 from mptt.models import MPTTModel
 
+from app.fields import FrontContentField
 from shared.django import BaseModel
 from shared.django.models import TimeBaseModel
 from django.db import transaction
@@ -82,6 +83,15 @@ class Survey(TimeBaseModel):
         help_text=_('The ID of the Telegram topic associated with this survey.')
     )
 
+    front_content = FrontContentField(
+        _('Frontend Content'),
+        blank=True,
+        null=True,
+        default=dict,
+        help_text=_(
+            'JSON object with "front_title" and "front_subtitle". Use &lt;span&gt; for styling.'
+        )
+    )
 
     class Meta:
         constraints = [

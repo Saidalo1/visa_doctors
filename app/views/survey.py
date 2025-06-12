@@ -2,6 +2,7 @@
 from django.db.models import Prefetch
 from drf_spectacular.utils import extend_schema, extend_schema_view
 import django_filters 
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.generics import ListAPIView, CreateAPIView
 
 from app.models import Question, AnswerOption, Survey
@@ -31,6 +32,8 @@ class SurveyListAPIView(ListAPIView):
     """API view for Survey model list."""
     queryset = Survey.objects.filter(is_active=True)
     serializer_class = SurveySerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['slug']
 
 
 @extend_schema_view(

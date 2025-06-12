@@ -3,7 +3,7 @@ from modeltranslation.translator import register, TranslationOptions
 
 from app.models import (
     About, AboutHighlight, VisaType, VisaDocument, ResultCategory, ContactInfo, UniversityLogo, Question, AnswerOption,
-    InputFieldType, SubmissionStatus
+    InputFieldType, SubmissionStatus, Survey
 )
 
 
@@ -11,6 +11,7 @@ from app.models import (
 class AboutTranslationOptions(TranslationOptions):
     """Translation options for About model."""
     fields = 'title', 'subtitle', 'description', 'experience_years'
+
 
 @register(SubmissionStatus)
 class SubmissionStatusTranslationOptions(TranslationOptions):
@@ -64,6 +65,12 @@ class QuestionTranslationOptions(TranslationOptions):
 class AnswerOptionTranslationOptions(TranslationOptions):
     """Translation options for AnswerOption model."""
     fields = 'text',
+
+
+@register(Survey)
+class SurveyTranslationOptions(TranslationOptions):
+    """Translation options for Survey model."""
+    fields = 'front_content',
 
 
 @register(InputFieldType)

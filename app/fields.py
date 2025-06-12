@@ -82,3 +82,70 @@ class ExperienceYearField(models.JSONField):
             
         if len(value['title']) > 255:
             raise ValidationError(_('Title cannot be longer than 255 characters'))
+
+
+class FrontContentWidget(forms.MultiWidget):
+    """Custom widget for frontend title and subtitle input."""
+
+    def __init__(self, attrs=None):
+        widgets = (
+            forms.TextInput(attrs={'placeholder': _('Frontend Title'), 'class': 'form-control'}),
+            forms.TextInput(attrs={'placeholder': _('Frontend Subtitle'), 'class': 'form-control'})
+        )
+        super().__init__(widgets, attrs)
+
+    def decompress(self, value):
+        """Convert JSON value to list of values for widget."""
+        if isinstance(value, dict):
+            return [value.get('front_title'), value.get('front_subtitle')]
+        return [None, None]
+
+
+class FrontContentFormField(forms.MultiValueField):
+    """Form field for frontend title and subtitle input."""
+    widget = FrontContentWidget
+
+    def __init__(self, **kwargs):
+        kwargs.pop('encoder', None)
+        kwargs.pop('decoder', None)
+
+        fields = (
+            forms.CharField(max_length=255, required=False),
+            forms.CharField(max_length=255, required=False)
+        )
+        super().__init__(fields, require_all_fields=False, **kwargs)
+
+    def compress(self, data_list):
+        """Convert widget values to JSON format."""
+        if data_list:
+            return {'front_title': data_list[0] or '', 'front_subtitle': data_list[1] or ''}
+        return {}
+
+
+class FrontContentField(models.JSONField):
+    """Custom JSON field for storing frontend content with a proper admin widget."""
+
+    def formfield(self, **kwargs):
+        defaults = {'form_class': FrontContentFormField}
+        defaults.update(kwargs)
+        return super().formfield(**defaults)
+
+    def validate(self, value, model_instance):
+        """Validate the JSON structure."""
+        super().validate(value, model_instance)
+
+        if not isinstance(value, dict):
+            raise ValidationError(_('Value must be a dictionary'))
+
+        front_title = value.get('front_title')
+        front_subtitle = value.get('front_subtitle')
+
+        if front_title and not isinstance(front_title, str):
+            raise ValidationError(_('Frontend title must be a string'))
+        if front_subtitle and not isinstance(front_subtitle, str):
+            raise ValidationError(_('Frontend subtitle must be a string'))
+
+        if front_title and len(front_title) > 255:
+            raise ValidationError(_('Frontend title cannot be longer than 255 characters'))
+        if front_subtitle and len(front_subtitle) > 255:
+            raise ValidationError(_('Frontend subtitle cannot be longer than 255 characters'))
