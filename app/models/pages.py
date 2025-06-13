@@ -1,10 +1,10 @@
 """Models for static pages like About, Results, Contacts, and Visas."""
 
 from django.db.models import TextField, CharField, PositiveIntegerField, ForeignKey, CASCADE, \
-    SlugField, SET_NULL, EmailField, URLField, ImageField
+    SlugField, SET_NULL, EmailField, URLField
+from stdimage import StdImageField
 from django.utils.translation import gettext_lazy as _
 from django_ckeditor_5.fields import CKEditor5Field
-from django.core.exceptions import ValidationError
 
 from shared.django import BaseModel
 from shared.django.fields import SVGFileField
@@ -95,7 +95,15 @@ class ResultCategory(BaseModel):
 
 class Result(BaseModel):
     """Results model."""
-    image = ImageField(_('Image'), upload_to='results/')
+    image = StdImageField(
+        _('Image'),
+        upload_to='results/',
+        variations={
+            'large': (1200, 800),
+            'thumbnail': (512, 512, True),
+        },
+        delete_orphans=True
+    )
     category = ForeignKey(
         'app.ResultCategory',
         SET_NULL,
@@ -133,7 +141,14 @@ class ContactInfo(BaseModel):
 class UniversityLogo(BaseModel):
     """University logo model."""
     name = CharField(_('University Name'), max_length=255)
-    logo = ImageField(_('Logo'), upload_to='universities/logos/')
+    logo = StdImageField(
+        _('Logo'),
+        upload_to='universities/logos/',
+        variations={
+            'thumbnail': (512, 512),
+        },
+        delete_orphans=True
+    )
     url = URLField(_('Website URL'), max_length=255, blank=True)
     order = PositiveIntegerField(_('Order'), default=0, db_index=True)
     

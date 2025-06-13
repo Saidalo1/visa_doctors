@@ -66,3 +66,7 @@ aiogram==3.3.0
 # Parsing tools
 beautifulsoup4==4.13.3
 lxml==5.1.0
+
+# Image optimization
+Pillow==10.3.0
+django-stdimage==6.0.2

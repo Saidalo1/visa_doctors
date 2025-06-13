@@ -2,7 +2,7 @@ from re import finditer, sub
 
 from django.utils.html import strip_tags
 from drf_spectacular.utils import extend_schema_field
-from rest_framework.fields import SerializerMethodField
+from rest_framework.fields import SerializerMethodField, ImageField
 from rest_framework.serializers import ModelSerializer
 
 from app.models import (
@@ -89,10 +89,11 @@ class VisaTypeDetailSerializer(ModelSerializer):
 
 class ResultSerializer(ModelSerializer):
     """Serializer for Result model."""
+    thumbnail = ImageField(source='image.thumbnail', read_only=True)
 
     class Meta:
         model = Result
-        fields = 'image',
+        fields = 'image', 'thumbnail'
 
 
 class ResultCategoryPreviewSerializer(ModelSerializer):
@@ -107,7 +108,8 @@ class ResultCategoryPreviewSerializer(ModelSerializer):
     def get_preview_results(self, obj):
         """Get first 6 results."""
         results = obj.results.all()[:6]
-        return ResultSerializer(results, many=True).data
+        # Pass context to the nested serializer to build absolute URLs
+        return ResultSerializer(results, many=True, context=self.context).data
 
 
 class ResultCategoryDetailSerializer(ModelSerializer):
@@ -121,6 +123,7 @@ class ResultCategoryDetailSerializer(ModelSerializer):
 
 class UniversityLogoSerializer(ModelSerializer):
     """Serializer for UniversityLogo model."""
+    logo = ImageField(source='logo.thumbnail', read_only=True)
 
     class Meta:
         model = UniversityLogo
