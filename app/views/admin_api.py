@@ -51,7 +51,7 @@ class SurveySubmissionFilter(django_filters.FilterSet):
 
     class Meta:
         model = SurveySubmission
-        fields = ['status__code', 'source', 'created_at']
+        fields = ['survey', 'status__code', 'source', 'created_at']
 
     def search_filter(self, queryset, name, value):
         """Filter submissions by search term in responses or comments."""
