@@ -135,18 +135,35 @@ class SurveySubmissionViewSet(viewsets.ModelViewSet):
         # context['active_survey_id'] = self.active_survey.id if hasattr(self, 'active_survey') and self.active_survey else None
         return context
 
-    @method_decorator(cache_page(60 * 60))  # Cache for 1 hour
+    @method_decorator(cache_page(60 * 5))  # Cache for 5 minutes
     @action(detail=False, methods=['get'])
     def available_filters(self, request):
         """
-        Return available filters for submissions.
-        Uses caching to prevent recreating filters on each request.
+        Return available filters for submissions, scoped to the active survey.
+        The active survey is determined by the 'survey' query parameter, with fallbacks.
         """
-        if self.__class__._cached_question_filters is None:
-            questions = Question.objects.select_related('field_type').prefetch_related('options')
-            self.__class__._cached_question_filters = questions
+        # Determine active survey to scope the filters
+        active_survey = None
+        survey_id_param = request.query_params.get('survey')
+        if survey_id_param:
+            try:
+                survey_id = int(survey_id_param)
+                active_survey = Survey.objects.filter(id=survey_id, is_active=True).first()
+            except (ValueError, TypeError):
+                pass
+        
+        if not active_survey:
+            # Fallback to default or first active survey
+            active_survey = Survey.objects.filter(is_default=True, is_active=True).first() or \
+                            Survey.objects.filter(is_active=True).order_by('id').first()
 
-        serializer = QuestionFilterSerializer(self.__class__._cached_question_filters, many=True)
+        if active_survey:
+            questions = Question.objects.filter(survey=active_survey).select_related('field_type').prefetch_related('options')
+        else:
+            # If no survey could be determined, return no questions.
+            questions = Question.objects.none()
+
+        serializer = QuestionFilterSerializer(questions, many=True)
 
         return Response({
             'questions': serializer.data,
