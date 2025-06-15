@@ -1,5 +1,6 @@
 from django.db.models import Prefetch
 from django.utils.decorators import method_decorator
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from django.views.decorators.cache import cache_page
 from django_filters import FilterSet
 from django_filters.rest_framework import DjangoFilterBackend
@@ -135,6 +136,11 @@ class SurveySubmissionViewSet(viewsets.ModelViewSet):
         # context['active_survey_id'] = self.active_survey.id if hasattr(self, 'active_survey') and self.active_survey else None
         return context
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(name='survey', description='Filter by a specific survey ID.', required=False, type=int)
+        ]
+    )
     @method_decorator(cache_page(60 * 5))  # Cache for 5 minutes
     @action(detail=False, methods=['get'])
     def available_filters(self, request):
