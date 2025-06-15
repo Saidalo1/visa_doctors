@@ -387,7 +387,7 @@ class QuestionAdmin(ImportExportModelAdmin, CustomSortableAdminMixin, Translatio
     autocomplete_fields = ['field_type']
     fieldsets = [
         (None, {
-            'fields': ('survey', 'title', 'placeholder', 'is_required')
+            'fields': ('survey', 'title', 'placeholder', 'is_required', 'is_title')
         }),
         (_('Input Configuration'), {
             'fields': ('input_type', 'field_type')

@@ -5,6 +5,7 @@ from django.db.models import (
     TextChoices, ManyToManyField, UniqueConstraint, BooleanField, SlugField, Q, CheckConstraint, F, IntegerField
 )
 from django.urls import reverse
+from django.db.models import Q, UniqueConstraint
 from django.utils.translation import gettext_lazy as _
 from mptt.fields import TreeForeignKey
 from mptt.models import MPTTModel
@@ -240,6 +241,11 @@ class Question(BaseModel):
         default=InputType.TEXT
     )
     order = PositiveIntegerField(_('Order'), default=0, db_index=True)
+    is_title = BooleanField(
+        _("Is Title for Mobile List"),
+        default=False,
+        help_text=_("If True, this question's answer will be used as a title in the mobile application's submission list. Only one question per survey can be marked as title.")
+    )
     survey = ForeignKey(
         'app.Survey',
         on_delete=CASCADE,
@@ -258,6 +264,13 @@ class Question(BaseModel):
 
     class Meta:
         ordering = ['survey', 'order']
+        constraints = [
+            UniqueConstraint(
+                fields=['survey', 'is_title'],
+                condition=Q(is_title=True),
+                name='unique_is_title_true_per_survey'
+            )
+        ]
         verbose_name = _('Question')
         verbose_name_plural = _('Questions')
 
