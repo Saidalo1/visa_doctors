@@ -662,10 +662,7 @@ CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
         'LOCATION': f"redis://{env.str('REDIS_HOST', 'redis')}:{env.int('REDIS_PORT', 6379)}/{env.int('REDIS_DB', 1)}",
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django.core.cache.client.DefaultClient',
-            'IGNORE_EXCEPTIONS': True,
-        }
+        'OPTIONS': {}
     }
 } if not DEBUG else {
     'default': {
