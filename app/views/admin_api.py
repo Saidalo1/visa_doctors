@@ -86,30 +86,7 @@ class SurveySubmissionViewSet(viewsets.ModelViewSet):
         if self.active_survey:
             queryset = queryset.filter(survey=self.active_survey)
 
-        # Apply dynamic filtering based on query params like question_ or option_
-        # This should apply to the already survey-filtered queryset if active_survey is set
-        for param, value in self.request.query_params.items():
-            if param.startswith('question_') and self.active_survey:
-                try:
-                    question_id = int(param.split('_')[1])
-                    # Ensure this question_id belongs to the active_survey to prevent cross-survey filtering
-                    if self.active_survey.questions.filter(id=question_id).exists():
-                        queryset = queryset.filter(
-                            responses__question_id=question_id,
-                            responses__text_answer__icontains=value
-                        ).distinct()
-                except (ValueError, IndexError):
-                    pass
-            elif param.startswith('option_') and self.active_survey:
-                try:
-                    option_id = int(param.split('_')[1])
-                    # Ensure this option_id belongs to a question in the active_survey
-                    if Question.objects.filter(survey=self.active_survey, options__id=option_id).exists():
-                        queryset = queryset.filter(
-                            responses__selected_options__id=option_id
-                        ).distinct()
-                except (ValueError, IndexError):
-                    pass
+
 
         return queryset
 
